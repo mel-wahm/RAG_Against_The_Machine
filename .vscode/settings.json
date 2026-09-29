@@ -1,0 +1,4 @@
+{
+    "cmake.sourceDirectory": "/home/mel-wahm/projects/RAG_Against_The_Machine/data/raw/vllm-0.10.1",
+    "makefile.configureOnOpen": false
+}
