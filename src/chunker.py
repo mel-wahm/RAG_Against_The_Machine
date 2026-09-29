@@ -9,8 +9,7 @@ class Chunker():
         self.python_files, \
             self.markdown_files, \
             self.text_files = self.load_files()
-        print(self.python_chunker("src/__main__.py"))
-        # self.chunks = self.set_chunks()
+        self.chunks = self.set_chunks()
 
     def load_files(self) -> list[list[str]]:
         path = Path(self.data_path)
@@ -37,16 +36,41 @@ class Chunker():
         start = []
         end = []
         for node in content:
-            print(node)
             if node.end_col_offset is None or node.end_lineno is None:
                 continue
             if hasattr(node, "decorator_list") and node.decorator_list:
                 line_no = node.decorator_list[0].lineno
             else:
                 line_no = node.lineno
-            start.append(lines_offsets[line_no - 1] + node.col_offset)
-            end.append(lines_offsets[node.end_lineno - 1] +
-                       node.end_col_offset)
+            s = lines_offsets[line_no - 1] + node.col_offset
+            e = lines_offsets[node.end_lineno - 1] + node.end_col_offset
+            if e - s > 2000 and hasattr(node, "body"):
+                for min_node in node.body:
+                    if (
+                        min_node.end_col_offset is None
+                        or min_node.end_lineno is None
+                    ):
+                        continue
+                    if (
+                        hasattr(min_node, "decorator_list")
+                        and min_node.decorator_list
+                    ):
+                        min_line_no = min_node.decorator_list[0].lineno
+                    else:
+                        min_line_no = min_node.lineno
+                    min_s = (
+                        lines_offsets[min_line_no - 1] + min_node.col_offset
+                    )
+                    min_e = (
+                        lines_offsets[min_node.end_lineno - 1]
+                        + min_node.end_col_offset
+                    )
+                    start.append(min_s)
+                    end.append(min_e)
+            else:
+                start.append(s)
+                end.append(e)
+
         chunks: list[MinimalSource] = []
         for i in range(len(start)):
             chunks.append(MinimalSource(

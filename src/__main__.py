@@ -8,10 +8,4 @@ from src.models import MinimalSource
 # print()
 
 chunk = Chunker()
-# di = []
 chunks: list[MinimalSource] = chunk.chunks
-for i in chunks:
-    length = i.last_character_index - i.first_character_index
-    # if length > 2000:
-        # print(i)
-# print(*di, sep='\n')
