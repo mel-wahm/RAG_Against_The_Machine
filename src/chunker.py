@@ -27,17 +27,27 @@ class Chunker():
             chunks.extend(chunk)
         return chunks
 
-    def extract_offsets(self, node: ast.stmt,
-                        lines_offsets: list[int]) -> Tuple[int, int] | None:
+    def chunk(self, node: ast.stmt,
+                        lines_offsets: list[int])\
+                            -> list[Tuple[int, int]]:
+        chunks = []
         if node.end_col_offset is None or node.end_lineno is None:
-            return None
+            return chunks
         if hasattr(node, "decorator_list") and node.decorator_list:
             line_no = node.decorator_list[0].lineno
         else:
             line_no = node.lineno
         s = lines_offsets[line_no - 1] + node.col_offset
         e = lines_offsets[node.end_lineno - 1] + node.end_col_offset
-        return (s, e)
+        if e - s > 2000 and hasattr(node, "body"):
+            for child in node.body:
+                result = self.chunk(child, lines_offsets)
+                chunks.extend(result)
+        else:
+            if e - s > 2000:
+                print(node)
+            chunks.append((s, e))
+        return chunks
 
     def python_chunker(self, file_path: str) -> list[MinimalSource]:
         with open(file_path) as f:
@@ -49,24 +59,14 @@ class Chunker():
         start = []
         end = []
         for node in content:
-            index = self.extract_offsets(node, lines_offsets)
+            index = self.chunk(node, lines_offsets)
             if not index:
                 continue
-            s, e = index
-            if e - s > 2000 and hasattr(node, "body"):
-                for min_node in node.body:
-                    index = self.extract_offsets(min_node, lines_offsets)
-                    if not index:
-                        continue
-                    min_s, min_e = index
-                    start.append(min_s)
-                    end.append(min_e)
-            elif e - s > 2000 and not hasattr(node, "body"):
-                pass
-            else:
+            for chunk in index:
+                s, e = chunk
                 start.append(s)
                 end.append(e)
-
+        
         chunks: list[MinimalSource] = []
         for i in range(len(start)):
             chunks.append(MinimalSource(
