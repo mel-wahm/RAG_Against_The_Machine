@@ -1,6 +1,7 @@
 from pathlib import Path
 from src.models import MinimalSource
 import ast
+from typing import Tuple
 
 
 class Chunker():
@@ -26,6 +27,18 @@ class Chunker():
             chunks.extend(chunk)
         return chunks
 
+    def extract_offsets(self, node: ast.stmt,
+                        lines_offsets: list[int]) -> Tuple[int, int] | None:
+        if node.end_col_offset is None or node.end_lineno is None:
+            return None
+        if hasattr(node, "decorator_list") and node.decorator_list:
+            line_no = node.decorator_list[0].lineno
+        else:
+            line_no = node.lineno
+        s = lines_offsets[line_no - 1] + node.col_offset
+        e = lines_offsets[node.end_lineno - 1] + node.end_col_offset
+        return (s, e)
+
     def python_chunker(self, file_path: str) -> list[MinimalSource]:
         with open(file_path) as f:
             source = f.read()
@@ -36,42 +49,20 @@ class Chunker():
         start = []
         end = []
         for node in content:
-            if node.end_col_offset is None or node.end_lineno is None:
+            index = self.extract_offsets(node, lines_offsets)
+            if not index:
                 continue
-            if hasattr(node, "decorator_list") and node.decorator_list:
-                line_no = node.decorator_list[0].lineno
-            else:
-                line_no = node.lineno
-            s = lines_offsets[line_no - 1] + node.col_offset
-            e = lines_offsets[node.end_lineno - 1] + node.end_col_offset
+            s, e = index
             if e - s > 2000 and hasattr(node, "body"):
                 for min_node in node.body:
-                    if (
-                        min_node.end_col_offset is None
-                        or min_node.end_lineno is None
-                    ):
+                    index = self.extract_offsets(min_node, lines_offsets)
+                    if not index:
                         continue
-                    if (
-                        hasattr(min_node, "decorator_list")
-                        and min_node.decorator_list
-                    ):
-                        min_line_no = min_node.decorator_list[0].lineno
-                    else:
-                        min_line_no = min_node.lineno
-                    min_s = (
-                        lines_offsets[min_line_no - 1] + min_node.col_offset
-                    )
-                    min_e = (
-                        lines_offsets[min_node.end_lineno - 1]
-                        + min_node.end_col_offset
-                    )
+                    min_s, min_e = index
                     start.append(min_s)
                     end.append(min_e)
             elif e - s > 2000 and not hasattr(node, "body"):
-                if hasattr(node.value, "keys"):
-                    print("Has attribute", node, node.__class__.__name__)
-                else:
-                    print("doesnt have attribute", node, node.__class__.__name__)
+                pass
             else:
                 start.append(s)
                 end.append(e)
