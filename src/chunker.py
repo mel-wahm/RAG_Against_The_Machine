@@ -45,8 +45,9 @@ class Chunker():
                 chunks.extend(result)
         else:
             if e - s > 2000:
-                print(node)
-            chunks.append((s, e))
+                pass
+            else:
+                chunks.append((s, e))
         return chunks
 
     def python_chunker(self, file_path: str) -> list[MinimalSource]:
