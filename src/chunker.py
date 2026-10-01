@@ -5,7 +5,7 @@ import ast
 
 class Chunker():
     def __init__(self) -> None:
-        self.data_path = "test"
+        self.data_path = "data/raw/vllm-0.10.1/"
         self.python_files, \
             self.markdown_files, \
             self.text_files = self.load_files()
@@ -29,7 +29,7 @@ class Chunker():
     def python_chunker(self, file_path: str) -> list[MinimalSource]:
         with open(file_path) as f:
             source = f.read()
-            content = ast.parse(source).body
+        content = ast.parse(source).body
         lines_offsets: list[int] = [0]
         for line in source.splitlines(keepends=True):
             lines_offsets.append(len(line) + lines_offsets[-1])
@@ -67,6 +67,11 @@ class Chunker():
                     )
                     start.append(min_s)
                     end.append(min_e)
+            elif e - s > 2000 and not hasattr(node, "body"):
+                if hasattr(node.value, "keys"):
+                    print("Has attribute", node, node.__class__.__name__)
+                else:
+                    print("doesnt have attribute", node, node.__class__.__name__)
             else:
                 start.append(s)
                 end.append(e)
