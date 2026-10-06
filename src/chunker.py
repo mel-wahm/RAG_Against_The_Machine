@@ -14,7 +14,8 @@ class Chunker():
         self.small_chunks = [ast.Import, ast.ImportFrom,
                         ast.Assign, ast.AnnAssign,
                         ast.Expr, ast.If]
-        self.big_chunks = [ast.FunctionDef, ast.ClassDef]
+        self.big_chunks = [ast.FunctionDef, ast.ClassDef,
+                           ast.AsyncFunctionDef]
         self.chunks = self.set_chunks()
 
     def load_files(self) -> list[list[str]]:
@@ -58,17 +59,16 @@ class Chunker():
         s_buff, e_buff = None, None
         for node in content:
             s, e = self.chunk(node, lines_offsets)
-            if s_buff is None:
-                s_buff = s
-                e_buff = e
-                continue
-            if e - s > self.max_chunk_size:
+            if type(node) in self.big_chunks or e - s > self.max_chunk_size:
                 if s_buff is not None:
                     start.append(s_buff)
                     end.append(e_buff)
                     s_buff, e_buff = None, None
                 start.append(s)
                 end.append(e)
+            elif s_buff is None:
+                s_buff = s
+                e_buff = e
             elif e - s_buff > self.max_chunk_size:
                 start.append(s_buff)
                 end.append(e_buff)
