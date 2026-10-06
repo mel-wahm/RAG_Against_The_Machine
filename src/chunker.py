@@ -6,10 +6,15 @@ from typing import Tuple
 
 class Chunker():
     def __init__(self) -> None:
-        self.data_path = "data/raw/vllm-0.10.1/"
+        self.max_chunk_size = 2000
+        self.data_path = "data/raw"
         self.python_files, \
             self.markdown_files, \
             self.text_files = self.load_files()
+        self.small_chunks = [ast.Import, ast.ImportFrom,
+                        ast.Assign, ast.AnnAssign,
+                        ast.Expr, ast.If]
+        self.big_chunks = [ast.FunctionDef, ast.ClassDef]
         self.chunks = self.set_chunks()
 
     def load_files(self) -> list[list[str]]:
@@ -39,16 +44,7 @@ class Chunker():
             line_no = node.lineno
         s = lines_offsets[line_no - 1] + node.col_offset
         e = lines_offsets[node.end_lineno - 1] + node.end_col_offset
-        if e - s > 2000 and hasattr(node, "body"):
-            for child in node.body:
-                result = self.chunk(child, lines_offsets)
-                chunks.extend(result)
-        else:
-            if e - s > 2000:
-                pass
-            else:
-                chunks.append((s, e))
-        return chunks
+        return s, e
 
     def python_chunker(self, file_path: str) -> list[MinimalSource]:
         with open(file_path) as f:
@@ -59,15 +55,32 @@ class Chunker():
             lines_offsets.append(len(line) + lines_offsets[-1])
         start = []
         end = []
+        s_buff, e_buff = None, None
         for node in content:
-            index = self.chunk(node, lines_offsets)
-            if not index:
+            s, e = self.chunk(node, lines_offsets)
+            if s_buff is None:
+                s_buff = s
+                e_buff = e
                 continue
-            for chunk in index:
-                s, e = chunk
+            if e - s > self.max_chunk_size:
+                if s_buff is not None:
+                    start.append(s_buff)
+                    end.append(e_buff)
+                    s_buff, e_buff = None, None
                 start.append(s)
                 end.append(e)
-        
+            elif e - s_buff > self.max_chunk_size:
+                start.append(s_buff)
+                end.append(e_buff)
+                s_buff = s
+                e_buff = e
+            else:
+                e_buff = e
+        if s_buff is not None:
+            start.append(s_buff)
+            end.append(e_buff)
+
+
         chunks: list[MinimalSource] = []
         for i in range(len(start)):
             chunks.append(MinimalSource(
