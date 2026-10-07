@@ -5,15 +5,12 @@ from typing import Tuple
 
 
 class Chunker():
-    def __init__(self) -> None:
-        self.max_chunk_size = 2000
-        self.data_path = "data/raw"
+    def __init__(self, max_chunk_size, data_path) -> None:
+        self.max_chunk_size = max_chunk_size
+        self.data_path = data_path
         self.python_files, \
             self.markdown_files, \
             self.text_files = self.load_files()
-        self.small_chunks = [ast.Import, ast.ImportFrom,
-                        ast.Assign, ast.AnnAssign,
-                        ast.Expr, ast.If]
         self.big_chunks = [ast.FunctionDef, ast.ClassDef,
                            ast.AsyncFunctionDef]
         self.chunks = self.set_chunks()
@@ -64,8 +61,10 @@ class Chunker():
                     start.append(s_buff)
                     end.append(e_buff)
                     s_buff, e_buff = None, None
-                start.append(s)
-                end.append(e)
+                if type(node) in self.big_chunks:
+                    pass
+                else:
+                    pass
             elif s_buff is None:
                 s_buff = s
                 e_buff = e
