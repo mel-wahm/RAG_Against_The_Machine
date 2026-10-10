@@ -96,14 +96,42 @@ class Chunker():
         start = []
         end = []
         s_buff, e_buff = None, None
+        fn_s_buff, fn_e_buff = None, None
         for node in content:
             s, e = self.chunk(node, lines_offsets)
-            if isinstance(node, self.big_chunks) or e - s > self.max_chunk_size:
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
                 if s_buff is not None:
                     start.append(s_buff)
                     end.append(e_buff)
                     s_buff, e_buff = None, None
-                if isinstance(node, ast.ClassDef) and e - s > self.max_chunk_size:
+                if e - s > self.max_chunk_size:
+                    if fn_s_buff is not None:
+                        start.append(fn_s_buff)
+                        end.append(fn_e_buff)
+                        fn_s_buff, fn_e_buff = None, None
+                    for cs, ce in self.chunk_by_lines(s, e, source):
+                        start.append(cs)
+                        end.append(ce)
+                elif fn_s_buff is None:
+                    fn_s_buff = s
+                    fn_e_buff = e
+                elif e - fn_s_buff > self.max_chunk_size:
+                    start.append(fn_s_buff)
+                    end.append(fn_e_buff)
+                    fn_s_buff = s
+                    fn_e_buff = e
+                else:
+                    fn_e_buff = e
+            elif isinstance(node, ast.ClassDef):
+                if s_buff is not None:
+                    start.append(s_buff)
+                    end.append(e_buff)
+                    s_buff, e_buff = None, None
+                if fn_s_buff is not None:
+                    start.append(fn_s_buff)
+                    end.append(fn_e_buff)
+                    fn_s_buff, fn_e_buff = None, None
+                if e - s > self.max_chunk_size:
                     sbuff, ebuff = None, None
                     for child in node.body:
                         s_, e_ = self.chunk(child, lines_offsets)
@@ -112,13 +140,24 @@ class Chunker():
                                 start.append(sbuff)
                                 end.append(ebuff)
                                 sbuff, ebuff = None, None
+                            elif s is not None:
+                                start.append(s)
+                                end.append(s_)
+                                s = None
                             for cs, ce in self.chunk_by_lines(
                                 s_, e_, source
                             ):
                                 start.append(cs)
                                 end.append(ce)
                         elif sbuff is None:
-                            sbuff = s_
+                            if s is not None and e_ - s <= self.max_chunk_size:
+                                sbuff = s
+                            else:
+                                if s is not None:
+                                    start.append(s)
+                                    end.append(s_)
+                                sbuff = s_
+                            s = None
                             ebuff = e_
                         elif e_ - sbuff > self.max_chunk_size:
                             start.append(sbuff)
@@ -130,26 +169,42 @@ class Chunker():
                     if sbuff is not None:
                         start.append(sbuff)
                         end.append(ebuff)
-                elif e - s > self.max_chunk_size:
-                    for cs, ce in self.chunk_by_lines(s, e, source):
-                        start.append(cs)
-                        end.append(ce)
                 else:
                     start.append(s)
                     end.append(e)
-            elif s_buff is None:
-                s_buff = s
-                e_buff = e
-            elif e - s_buff > self.max_chunk_size:
-                start.append(s_buff)
-                end.append(e_buff)
-                s_buff = s
-                e_buff = e
+            elif e - s > self.max_chunk_size:
+                if s_buff is not None:
+                    start.append(s_buff)
+                    end.append(e_buff)
+                    s_buff, e_buff = None, None
+                if fn_s_buff is not None:
+                    start.append(fn_s_buff)
+                    end.append(fn_e_buff)
+                    fn_s_buff, fn_e_buff = None, None
+                for cs, ce in self.chunk_by_lines(s, e, source):
+                    start.append(cs)
+                    end.append(ce)
             else:
-                e_buff = e
+                if fn_s_buff is not None:
+                    start.append(fn_s_buff)
+                    end.append(fn_e_buff)
+                    fn_s_buff, fn_e_buff = None, None
+                if s_buff is None:
+                    s_buff = s
+                    e_buff = e
+                elif e - s_buff > self.max_chunk_size:
+                    start.append(s_buff)
+                    end.append(e_buff)
+                    s_buff = s
+                    e_buff = e
+                else:
+                    e_buff = e
         if s_buff is not None:
             start.append(s_buff)
             end.append(e_buff)
+        if fn_s_buff is not None:
+            start.append(fn_s_buff)
+            end.append(fn_e_buff)
 
 
         chunks: list[MinimalSource] = []
