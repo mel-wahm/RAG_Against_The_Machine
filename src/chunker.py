@@ -6,17 +6,22 @@ from src.models import MinimalSource
 
 class SpanBuffer:
     """
-    Greedily aggregates contiguous start and end character offsets into chunks.
-    Flushes to the output list when adding an offset would exceed max_chunk_size.
+    Greedily aggregates contiguous start and end character offsets
+    into chunks.
+    Flushes to the output list when adding an offset would exceed .
     """
-    def __init__(self, max_chunk_size: int, output_spans: List[Tuple[int, int]]) -> None:
+
+    def __init__(
+        self, max_chunk_size: int, output_spans: List[Tuple[int, int]]
+    ) -> None:
         self.max_chunk_size = max_chunk_size
         self.output_spans = output_spans
         self.start: Optional[int] = None
         self.end: Optional[int] = None
 
     def add(self, start: int, end: int) -> None:
-        """Add a span. Flushes if the resulting size would exceed max_chunk_size."""
+        """Add a span. Flushes if the resulting
+        size would exceed max_chunk_size."""
         if self.start is None:
             self.start, self.end = start, end
         elif end - self.start <= self.max_chunk_size:
@@ -34,50 +39,71 @@ class SpanBuffer:
 
 class Chunker:
     """
-    AST-based document chunker that splits Python code into semantically coherent,
+    AST-based document chunker that splits Python
+    code into semantically coherent,
     size-bounded chunks for retrieval-augmented generation (RAG).
     """
+
     def __init__(self, max_chunk_size: int, data_path: str) -> None:
         self.max_chunk_size = max_chunk_size
         self.data_path = data_path
-        self.python_files, self.markdown_files, self.text_files = self.load_files()
+        self.python_files, self.markdown_files, \
+            self.text_files = self.load_files()
         self.chunks = self.set_chunks()
 
     def load_files(self) -> Tuple[List[str], List[str], List[str]]:
-        """Recursively scan data_path (with ~ expansion) and group files by extension, ignoring hidden directories."""
+        """Recursively scan data_path (with ~ expansion)
+        and group files by extension, ignoring hidden directories."""
         path = Path(self.data_path).expanduser().resolve()
-        files = [
-            str(f) for f in path.rglob("*")
-            if f.is_file()
-        ]
+        files = [str(f) for f in path.rglob("*") if f.is_file()]
         python_files = [f for f in files if f.endswith(".py")]
         markdown_files = [f for f in files if f.endswith(".md")]
         text_files = [f for f in files if f.endswith(".txt")]
         return python_files, markdown_files, text_files
 
     def set_chunks(self) -> List[MinimalSource]:
-        """Parse all discovered Python files and return their chunks."""
+        """Parse all discovered files and return their chunks."""
         chunks: List[MinimalSource] = []
         for file in self.python_files:
             try:
                 chunks.extend(self.python_chunker(file))
             except (SyntaxError, UnicodeDecodeError):
                 continue
+        for file in self.markdown_files:
+            try:
+                chunks.extend(self.markdown_chunker(file))
+            except (UnicodeDecodeError, OSError):
+                continue
+        for file in self.text_files:
+            try:
+                chunks.extend(self.text_chunker(file))
+            except (UnicodeDecodeError, OSError):
+                continue
         return chunks
 
-    def get_node_span(self, node: ast.stmt, lines_offsets: List[int]) -> Tuple[int, int]:
-        """Return the (start, end) character offsets of an AST node including decorators."""
+    def get_node_span(
+        self, node: ast.stmt, lines_offsets: List[int]
+    ) -> Tuple[int, int]:
+        """Return the (start, end) character offsets of an
+        AST node including decorators."""
         if node.end_col_offset is None or node.end_lineno is None:
             return 0, 0
-        line_no = node.decorator_list[0].lineno if \
-            hasattr(node, "decorator_list") and node.decorator_list else node.lineno
+        line_no = (
+            node.decorator_list[0].lineno
+            if hasattr(node, "decorator_list") and node.decorator_list
+            else node.lineno
+        )
         start_offset = lines_offsets[line_no - 1] + node.col_offset
         end_offset = lines_offsets[node.end_lineno - 1] + node.end_col_offset
         return start_offset, end_offset
 
-    def chunk_by_lines(self, start_offset: int, end_offset: int, source: str, overlap: int = 150) -> List[Tuple[int, int]]:
+    def chunk_by_lines(
+        self, start_offset: int, end_offset: int,
+        source: str, overlap: int = 150
+    ) -> List[Tuple[int, int]]:
         """
-        Split a span [start_offset:end_offset] along newline boundaries using a sliding window.
+        Split a span [start_offset:end_offset] along
+        newline boundaries using a sliding window.
         Includes backward line overlap to preserve context between chunks.
         """
         if end_offset - start_offset <= self.max_chunk_size:
@@ -93,7 +119,10 @@ class Chunker:
         while line_start < len(lines):
             line_end = line_start
             line_length = 0
-            while line_end < len(lines) and line_length + len(lines[line_end]) <= self.max_chunk_size:
+            while (
+                line_end < len(lines)
+                and line_length + len(lines[line_end]) <= self.max_chunk_size
+            ):
                 line_length += len(lines[line_end])
                 line_end += 1
 
@@ -101,15 +130,21 @@ class Chunker:
                 # Single line exceeds max_chunk_size: split it by words
                 single_line = lines[line_start]
                 line_offset = start_offset + line_offsets[line_start]
-                chunks.extend(self.chunk_line_by_words(single_line, line_offset))
+                chunks.extend(self.chunk_by_words(single_line, line_offset))
                 line_start += 1
                 continue
 
-            chunks.append((start_offset + line_offsets[line_start], start_offset + line_offsets[line_end]))
+            chunks.append(
+                (
+                    start_offset + line_offsets[line_start],
+                    start_offset + line_offsets[line_end],
+                )
+            )
             if line_end >= len(lines):
                 break
 
-            # Slide backwards from line_end to capture overlapping lines up to `overlap`
+            # Slide backwards from line_end to
+            # capture overlapping lines up to `overlap`
             overlap_len = 0
             next_start_idx = line_end
             while next_start_idx > line_start + 1:
@@ -123,8 +158,11 @@ class Chunker:
 
         return chunks
 
-    def chunk_line_by_words(self, line: str, start_offset: int = 0) -> List[Tuple[int, int]]:
-        """Split a long line into word-based chunks under max_chunk_size."""
+    def chunk_by_words(
+        self, line: str, start_offset: int = 0
+    ) -> List[Tuple[int, int]]:
+        """Split a long line into word-based
+        chunks under max_chunk_size."""
         chunks = []
         words = line.split(" ")
         curr = ""
@@ -152,11 +190,19 @@ class Chunker:
             chunks.append((offset, offset + len(curr)))
         return chunks
 
-    def _chunk_large_class(self, node: ast.ClassDef, class_start: int, lines_offsets: List[int],
-                           source: str, spans: List[Tuple[int, int]]) -> None:
+    def _chunk_large_class(
+        self,
+        node: ast.ClassDef,
+        class_start: int,
+        lines_offsets: List[int],
+        source: str,
+        spans: List[Tuple[int, int]],
+    ) -> None:
         """
-        Split an oversized class (> max_chunk_size) member by member, ensuring the class
-        declaration and initial comments are mixed into the first member chunk.
+        Split an oversized class (> max_chunk_size)
+          member by member, ensuring the class
+        declaration and initial comments are mixed
+        into the first member chunk.
         """
         member_buffer = SpanBuffer(self.max_chunk_size, spans)
         pending_class_header: Optional[int] = class_start
@@ -166,19 +212,30 @@ class Chunker:
 
             # Child function or block exceeds max_chunk_size on its own
             if child_end - child_start > self.max_chunk_size:
-                chunk_start = pending_class_header if pending_class_header is not None else (member_buffer.start or child_start)
+                chunk_start = (
+                    pending_class_header
+                    if pending_class_header is not None
+                    else (member_buffer.start or child_start)
+                )
                 pending_class_header = None
                 member_buffer.start, member_buffer.end = None, None
-                spans.extend(self.chunk_by_lines(chunk_start, child_end, source))
+                spans.extend(self.chunk_by_lines(chunk_start, child_end,
+                                                 source))
 
             # First member: attach class header if still pending
             elif member_buffer.start is None:
-                chunk_start = pending_class_header if pending_class_header is not None else child_start
+                chunk_start = (
+                    pending_class_header
+                    if pending_class_header is not None
+                    else child_start
+                )
                 pending_class_header = None
                 if child_end - chunk_start <= self.max_chunk_size:
-                    member_buffer.start, member_buffer.end = chunk_start, child_end
+                    member_buffer.start, member_buffer.end \
+                        = chunk_start, child_end
                 else:
-                    spans.extend(self.chunk_by_lines(chunk_start, child_end, source))
+                    spans.extend(self.chunk_by_lines(chunk_start,
+                                                     child_end, source))
 
             # Buffer overflow: commit existing chunk and start anew
             elif child_end - member_buffer.start > self.max_chunk_size:
@@ -191,11 +248,16 @@ class Chunker:
 
     def python_chunker(self, file_path: str) -> List[MinimalSource]:
         """
-        Segment a Python file into semantically coherent chunks using AST analysis.
-        Buffers top-level statements, small functions, and small classes into clean units.
+        Segment a Python file into semantically
+        coherent chunks using AST analysis.
+        Buffers top-level statements, small
+        functions, and small classes into clean units.
         """
-        with open(file_path) as f:
-            source = f.read()
+        try:
+            with open(file_path) as f:
+                source = f.read()
+        except Exception:
+            return []
         content = ast.parse(source).body
 
         lines_offsets: List[int] = [0]
@@ -207,7 +269,8 @@ class Chunker:
         func_buffer = SpanBuffer(self.max_chunk_size, spans)
         class_buffer = SpanBuffer(self.max_chunk_size, spans)
 
-        def flush_all_except(active_buffer: Optional[SpanBuffer] = None) -> None:
+        def flush_all_except(active_buffer:
+                             Optional[SpanBuffer] = None) -> None:
             """Flush buffers when switching AST statement domains."""
             for buf in (module_buffer, func_buffer, class_buffer):
                 if buf is not active_buffer:
@@ -216,33 +279,147 @@ class Chunker:
         for node in content:
             node_start, node_end = self.get_node_span(node, lines_offsets)
 
-            # 1. Functions: buffer small functions; split oversized functions by lines
+            # 1. Functions: buffer small functions;
+            # split oversized functions by lines
             if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
                 flush_all_except(func_buffer)
                 if node_end - node_start > self.max_chunk_size:
                     func_buffer.flush()
-                    spans.extend(self.chunk_by_lines(node_start, node_end, source))
+                    spans.extend(self.chunk_by_lines(node_start,
+                                                     node_end, source))
                 else:
                     func_buffer.add(node_start, node_end)
 
-            # 2. Classes: buffer small classes; unpack oversized classes member-by-member
+            # 2. Classes: buffer small classes;
+            # unpack oversized classes member-by-member
             elif isinstance(node, ast.ClassDef):
                 flush_all_except(class_buffer)
                 if node_end - node_start > self.max_chunk_size:
                     class_buffer.flush()
-                    self._chunk_large_class(node, node_start, lines_offsets, source, spans)
+                    self._chunk_large_class(
+                        node, node_start, lines_offsets, source, spans
+                    )
                 else:
                     class_buffer.add(node_start, node_end)
 
-            # 3. Other oversized top-level statements (e.g. huge data dicts/lists)
+            # 3. Other oversized top-level
+            # statements (e.g. huge data dicts/lists)
             elif node_end - node_start > self.max_chunk_size:
                 flush_all_except()
                 spans.extend(self.chunk_by_lines(node_start, node_end, source))
 
-            # 4. General module-level statements (imports, variables, expressions)
+            # 4. General module-level
+            # statements (imports, variables, expressions)
             else:
                 flush_all_except(module_buffer)
                 module_buffer.add(node_start, node_end)
 
         flush_all_except()
-        return [MinimalSource(file_path=file_path, first_character_index=s, last_character_index=e) for s, e in spans]
+        return [
+            MinimalSource(
+                file_path=file_path,
+                first_character_index=s,
+                last_character_index=e
+            )
+            for s, e in spans
+        ]
+
+    def markdown_chunker(self, file_path: str) -> List[MinimalSource]:
+        """Split a Markdown file into chunks using headers."""
+        try:
+            with open(file_path, "r", encoding="utf-8", errors="replace") as f:
+                source = f.read()
+        except Exception:
+            return []
+
+        if not source.strip():
+            return []
+
+        lines = source.splitlines(keepends=True)
+
+        spans: List[Tuple[int, int]] = []
+        buffer = SpanBuffer(self.max_chunk_size, spans)
+
+        section_start = 0
+        current_position = 0
+
+        for line in lines:
+            stripped_line = line.lstrip()
+            num_hashes = len(stripped_line) - len(stripped_line.lstrip("#"))
+            is_header = (
+                1 <= num_hashes <= 6
+                and stripped_line[num_hashes:num_hashes + 1] in (" ", "\t")
+            )
+
+            # A header starts a new section.
+            if is_header and current_position > section_start:
+                section_end = current_position
+
+                if source[section_start:section_end].strip():
+                    section_size = section_end - section_start
+
+                    if section_size > self.max_chunk_size:
+                        buffer.flush()
+                        spans.extend(
+                            self.chunk_by_lines(
+                                section_start,
+                                section_end,
+                                source
+                            )
+                        )
+                    else:
+                        buffer.add(section_start, section_end)
+
+                section_start = current_position
+
+            current_position += len(line)
+
+        # Process the final section.
+        section_end = len(source)
+
+        if source[section_start:section_end].strip():
+            section_size = section_end - section_start
+
+            if section_size > self.max_chunk_size:
+                buffer.flush()
+                spans.extend(
+                    self.chunk_by_lines(
+                        section_start,
+                        section_end,
+                        source
+                    )
+                )
+            else:
+                buffer.add(section_start, section_end)
+
+        buffer.flush()
+
+        return [
+            MinimalSource(
+                file_path=file_path,
+                first_character_index=start,
+                last_character_index=end
+            )
+            for start, end in spans
+        ]
+
+    def text_chunker(self, file_path: str) -> List[MinimalSource]:
+        """Split a plain text file into chunks using chunk_by_lines."""
+        try:
+            with open(file_path, "r", encoding="utf-8", errors="replace") as f:
+                source = f.read()
+        except Exception:
+            return []
+
+        if not source.strip():
+            return []
+
+        spans = self.chunk_by_lines(0, len(source), source)
+        return [
+            MinimalSource(
+                file_path=file_path,
+                first_character_index=start,
+                last_character_index=end
+            )
+            for start, end in spans
+        ]
