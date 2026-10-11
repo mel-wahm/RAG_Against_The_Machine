@@ -5,7 +5,7 @@ chunk = Chunker(2000, "data/raw")
 ext = [ch for ch in chunk.chunks if ch.last_character_index - ch.first_character_index
         > 2000]
 small = [ch for ch in chunk.chunks if ch.last_character_index - ch.first_character_index < 250]
-good = [ch for ch in chunk.chunks if 1800 <= ch.last_character_index - ch.first_character_index <= 2000]
+good = [ch for ch in chunk.chunks if 1000 <= ch.last_character_index - ch.first_character_index <= 2000]
 # for ch in chunk.chunks:
 #     print(ch, ch.last_character_index - ch.first_character_index)
 

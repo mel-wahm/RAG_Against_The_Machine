@@ -48,7 +48,7 @@ class Chunker:
         path = Path(self.data_path).expanduser().resolve()
         files = [
             str(f) for f in path.rglob("*")
-            if f.is_file() and not any(part.startswith(".") for part in f.parts[:-1])
+            if f.is_file()
         ]
         python_files = [f for f in files if f.endswith(".py")]
         markdown_files = [f for f in files if f.endswith(".md")]
@@ -98,7 +98,12 @@ class Chunker:
                 line_end += 1
 
             if line_end == line_start:
-                line_end += 1
+                # Single line exceeds max_chunk_size: split it by words
+                single_line = lines[line_start]
+                line_offset = start_offset + line_offsets[line_start]
+                chunks.extend(self.chunk_line_by_words(single_line, line_offset))
+                line_start += 1
+                continue
 
             chunks.append((start_offset + line_offsets[line_start], start_offset + line_offsets[line_end]))
             if line_end >= len(lines):
@@ -116,6 +121,35 @@ class Chunker:
                     break
             line_start = next_start_idx
 
+        return chunks
+
+    def chunk_line_by_words(self, line: str, start_offset: int = 0) -> List[Tuple[int, int]]:
+        """Split a long line into word-based chunks under max_chunk_size."""
+        chunks = []
+        words = line.split(" ")
+        curr = ""
+        offset = start_offset
+
+        for word in words:
+            while len(word) > self.max_chunk_size:
+                if curr:
+                    chunks.append((offset, offset + len(curr)))
+                    offset += len(curr) + 1
+                    curr = ""
+                chunks.append((offset, offset + self.max_chunk_size))
+                offset += self.max_chunk_size
+                word = word[self.max_chunk_size:]
+
+            candidate = f"{curr} {word}" if curr else word
+            if len(candidate) > self.max_chunk_size and curr:
+                chunks.append((offset, offset + len(curr)))
+                offset += len(curr) + 1
+                curr = word
+            else:
+                curr = candidate
+
+        if curr:
+            chunks.append((offset, offset + len(curr)))
         return chunks
 
     def _chunk_large_class(self, node: ast.ClassDef, class_start: int, lines_offsets: List[int],
