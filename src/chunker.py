@@ -66,8 +66,10 @@ class Chunker:
         chunks: list[MinimalSource] = []
         for file in self.python_files:
             chunks.extend(self.python_chunker(file))
-        # for file in self.markdown_files:
-        #     chunks.extend(self.markdown_chunker(file))
+        for file in self.markdown_files:
+            chunks.extend(self.markdown_chunker(file))
+        for file in self.text_files:
+            chunks.extend(self.text_chunker(file))
         return chunks
 
     def get_offsets(
@@ -122,21 +124,14 @@ class Chunker:
             member_buffer.flush()
 
     def split_long_line(self, spans: list[tuple[int, int]],
-                        source: str, start_line: int, end_line: int) -> None:
-        lines_offsets = [0]
-        for line in source.splitlines(keepends=True):
-            lines_offsets.append(len(line) + lines_offsets[-1])
-        line = source[lines_offsets[start_line]:lines_offsets[end_line]]
-        s = 0
-        e = self.max_size
-        
-        while e < len(line):
-            spans.append((lines_offsets[start_line] + s, lines_offsets[start_line] + e))
-            s += self.max_size
-            e += self.max_size
-        e = len(line)
-        spans.append((lines_offsets[start_line] + s, lines_offsets[start_line] + e))
+                        start: int, end: int) -> None:
+        curr = start
 
+        while curr + self.max_size < end:
+            spans.append((curr, curr + self.max_size))
+            curr += self.max_size
+
+        spans.append((curr, end))
 
     def chunk_by_lines(
         self,
@@ -167,7 +162,8 @@ class Chunker:
                 end_line += 1
             if end_line == start_line:
                 end_line += 1
-                self.split_long_line(spans, source, start_line, end_line)
+                self.split_long_line(spans, start + lines_offsets[start_line],
+                                     start + lines_offsets[end_line])
                 start_line += 1
                 continue
             chunk_s = start + lines_offsets[start_line]
@@ -178,10 +174,10 @@ class Chunker:
             overlap_line = end_line
             overlap_length = 0
             while overlap_line > start_line + 1:
-                prev_line_length = len(lines[overlap_line - 1])
-                if prev_line_length + overlap_length <= overlap:
+                prev_endgth = len(lines[overlap_line - 1])
+                if prev_endgth + overlap_length <= overlap:
                     overlap_line -= 1
-                    overlap_length += prev_line_length
+                    overlap_length += prev_endgth
                 else:
                     break
             start_line = overlap_line
@@ -255,10 +251,10 @@ class Chunker:
             return []
         if not source.strip():
             return []
-        # in_code_block = False
+        in_code_block = False
         lines = list(source.splitlines(keepends=True))
-        # spans: list[tuple[int, int]] = []
-        # markdown_buffer: Buffer = Buffer(spans, self.max_size)
+        spans: list[tuple[int, int]] = []
+        markdown_buffer: Buffer = Buffer(spans, self.max_size)
 
         def is_header(line: str) -> bool:
             space_stripped = line.lstrip()
@@ -271,7 +267,36 @@ class Chunker:
                 stripped_line[0] in (" ", "\t")
                 and 1 <= len(space_stripped) - len(stripped_line) <= 6
             )
+        line_offsets = [0]
+        for line in lines:
+            line_offsets.append(line_offsets[-1] + len(line))
 
-        print(is_header(lines[0]))
-        exit()
-        return []
+        for num, line in enumerate(lines):
+            if line.lstrip().startswith("```") or \
+             line.lstrip().startswith("~~~"):
+                in_code_block = not in_code_block
+            line_is_header = is_header(line) and not in_code_block
+            if line_is_header:
+                markdown_buffer.flush()
+            if len(line) > self.max_size:
+                markdown_buffer.flush()
+                self.split_long_line(spans, line_offsets[num],
+                                     line_offsets[num + 1])
+            else:
+                markdown_buffer.add((line_offsets[num], line_offsets[num + 1]))
+        markdown_buffer.flush()
+        return [MinimalSource(file_path=file_path,
+                first_character_index=s,
+                last_character_index=e) for s, e in spans]
+
+    def text_chunker(self, file_path: str) -> list[MinimalSource]:
+        try:
+            with open(file_path) as f:
+                source = f.read()
+        except Exception:
+            return []
+        spans : list[tuple[int, int]]= []
+        self.chunk_by_lines(0, len(source), spans, source)
+        return [MinimalSource(file_path=file_path,
+                              first_character_index=s,
+                              last_character_index=e) for s, e in spans]

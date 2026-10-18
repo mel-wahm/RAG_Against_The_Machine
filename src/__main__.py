@@ -1,6 +1,6 @@
 from src.chunker import Chunker
 
-chunk = Chunker(2000, "long_line")
+chunk = Chunker(2000, "data/raw")
 
 ext = [
     ch
@@ -38,6 +38,3 @@ total = sum(ch.last_character_index - ch.first_character_index
 print()
 print()
 print("Average length of chunks:  -->", round(total / len(chunk.chunks), 2))
-
-for ch in ext:
-    print(ch.last_character_index - ch.first_character_index)
