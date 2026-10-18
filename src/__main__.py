@@ -1,6 +1,6 @@
 from src.chunker import Chunker
 
-chunk = Chunker(2000, "data/raw")
+chunk = Chunker(2000, "long_line")
 
 ext = [
     ch
@@ -17,6 +17,7 @@ good = [
     for ch in chunk.chunks
     if 1000 <= ch.last_character_index - ch.first_character_index <= 2000
 ]
+
 if not len(chunk.chunks):
     print(f"total number of chunks:    --> {len(chunk.chunks)}")
     exit()
@@ -37,3 +38,6 @@ total = sum(ch.last_character_index - ch.first_character_index
 print()
 print()
 print("Average length of chunks:  -->", round(total / len(chunk.chunks), 2))
+
+for ch in ext:
+    print(ch.last_character_index - ch.first_character_index)
