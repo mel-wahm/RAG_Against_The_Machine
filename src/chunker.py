@@ -101,10 +101,11 @@ class Chunker:
         source: str,
     ) -> None:
 
-        chunk_start: int | None = \
-            self.get_offsets(class_node, files_offsets)[0]
+        chunk_start: int | None = self.get_offsets(class_node, files_offsets)[
+            0
+        ]
         member_buffer = Buffer(spans, self.max_size)
-        assert (hasattr(class_node, "body"))
+        assert hasattr(class_node, "body")
         for node in class_node.body:
             start = (
                 self.get_offsets(node, files_offsets)[0]
@@ -123,8 +124,9 @@ class Chunker:
         if member_buffer.start is not None:
             member_buffer.flush()
 
-    def split_long_line(self, spans: list[tuple[int, int]],
-                        start: int, end: int) -> None:
+    def split_long_line(
+        self, spans: list[tuple[int, int]], start: int, end: int
+    ) -> None:
         curr = start
 
         while curr + self.max_size < end:
@@ -162,8 +164,11 @@ class Chunker:
                 end_line += 1
             if end_line == start_line:
                 end_line += 1
-                self.split_long_line(spans, start + lines_offsets[start_line],
-                                     start + lines_offsets[end_line])
+                self.split_long_line(
+                    spans,
+                    start + lines_offsets[start_line],
+                    start + lines_offsets[end_line],
+                )
                 start_line += 1
                 continue
             chunk_s = start + lines_offsets[start_line]
@@ -267,27 +272,35 @@ class Chunker:
                 stripped_line[0] in (" ", "\t")
                 and 1 <= len(space_stripped) - len(stripped_line) <= 6
             )
+
         line_offsets = [0]
         for line in lines:
             line_offsets.append(line_offsets[-1] + len(line))
 
         for num, line in enumerate(lines):
-            if line.lstrip().startswith("```") or \
-             line.lstrip().startswith("~~~"):
+            if line.lstrip().startswith("```") or line.lstrip().startswith(
+                "~~~"
+            ):
                 in_code_block = not in_code_block
             line_is_header = is_header(line) and not in_code_block
             if line_is_header:
                 markdown_buffer.flush()
             if len(line) > self.max_size:
                 markdown_buffer.flush()
-                self.split_long_line(spans, line_offsets[num],
-                                     line_offsets[num + 1])
+                self.split_long_line(
+                    spans, line_offsets[num], line_offsets[num + 1]
+                )
             else:
                 markdown_buffer.add((line_offsets[num], line_offsets[num + 1]))
         markdown_buffer.flush()
-        return [MinimalSource(file_path=file_path,
+        return [
+            MinimalSource(
+                file_path=file_path,
                 first_character_index=s,
-                last_character_index=e) for s, e in spans]
+                last_character_index=e,
+            )
+            for s, e in spans
+        ]
 
     def text_chunker(self, file_path: str) -> list[MinimalSource]:
         try:
@@ -295,8 +308,13 @@ class Chunker:
                 source = f.read()
         except Exception:
             return []
-        spans : list[tuple[int, int]]= []
+        spans: list[tuple[int, int]] = []
         self.chunk_by_lines(0, len(source), spans, source)
-        return [MinimalSource(file_path=file_path,
-                              first_character_index=s,
-                              last_character_index=e) for s, e in spans]
+        return [
+            MinimalSource(
+                file_path=file_path,
+                first_character_index=s,
+                last_character_index=e,
+            )
+            for s, e in spans
+        ]
