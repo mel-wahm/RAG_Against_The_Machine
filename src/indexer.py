@@ -33,8 +33,10 @@ TEXT_STOPWORDS = (
 )
 
 class Indexer:
-    def __init__(self, chunks: list[MinimalSource]) -> None:
+    def __init__(self, chunks: list[MinimalSource], k = 1.2 , b = 0.8) -> None:
         self.chunks = chunks
+        self.k = k
+        self.b = b
         self.content = self.read_chunks("data/raw")
         self.chunks_length = []
         self.index = self.indexing()
@@ -67,8 +69,8 @@ class Indexer:
 
     def bm25(self, query: str, top_k: int) -> list[tuple[int, int]]:
         scores = {x:0 for x in range(len(self.chunks))}
-        b = 0.7
-        k = 2
+        b = self.b
+        k = self.k
         for token in self.tokenizer(query):
             if not token in self.index:
                 continue

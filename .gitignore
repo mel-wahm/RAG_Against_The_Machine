@@ -8,6 +8,9 @@ wheels/
 data/
 .mypy_cache/
 .pytest_cache/
+moulinette-ubuntu
+exam_retrieval.sh
+answers.json
 
 # Virtual environments
 .venv
