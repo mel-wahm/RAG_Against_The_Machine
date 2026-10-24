@@ -65,7 +65,7 @@ class Indexer:
         scores = log(1 + (n - nt + 0.5) / (nt + 0.5))
         return scores
 
-    def bm25(self, query: str, top_k: int) -> dict[int, int]:
+    def bm25(self, query: str, top_k: int) -> list[tuple[int, int]]:
         scores = {x:0 for x in range(len(self.chunks))}
         b = 0.7
         k = 2
@@ -118,9 +118,9 @@ class Indexer:
             self.chunks_length.append(len(tokens))
         return index
 
-
-indexer = Indexer(Chunker(2000, "data/raw").chunks)
-query = "What is the default timeout value for vLLM RPC operations?"
-scores = indexer.bm25(query, 5)
-for chunk, score in scores:
-    print(indexer.chunks[chunk].file_path)
+if __name__ == "__main__":
+    indexer = Indexer(Chunker(2000, "data/raw").chunks)
+    query = "What is the default timeout value for vLLM RPC operations?"
+    scores = indexer.bm25(query, 5)
+    for chunk, score in scores:
+        print(indexer.chunks[chunk].file_path)

@@ -34,6 +34,7 @@ class RagDataset(BaseModel):
 
 
 class MinimalSearchResults(BaseModel):
+
     """Represents the search results for a single question."""
 
     question_id: str
@@ -41,7 +42,7 @@ class MinimalSearchResults(BaseModel):
     retrieved_sources: List[MinimalSource]
 
 
-class MinimalAnswer(MinimalSearchResults):
+class MinimalAnswer(MinimalSearchResults):  
     """Represents a search result with an answer."""
 
     answer: str
