@@ -4,6 +4,7 @@ from pathlib import Path
 import re
 from math import log
 from heapq import nlargest
+from collections import defaultdict
 
 query = "self"
 
@@ -75,17 +76,17 @@ class Indexer:
         return scores
 
     def bm25(self, query: str, top_k: int) -> list[tuple[int, float]]:
-        scores = {x: 0.0 for x in range(len(self.chunks))}
+        scores = defaultdict(float)
         k = self.k
         for token in self.tokenizer(query):
             if token not in self.index:
                 continue
-            muliplier = 1.4 if "_" in token else 1
+            multiplier = 1.4 if "_" in token else 1
             idf = self.calculate_idf(token)
             for chunk, tf in self.index[token].items():
                 bast = tf * (k + 1)
                 maqam = tf + self.penalty[chunk]
-                scores[chunk] += idf * (bast / maqam) * muliplier
+                scores[chunk] += idf * (bast / maqam) * multiplier
         new_scores = nlargest(top_k, scores.items(), key=lambda elem: elem[1])
         return new_scores
 
@@ -94,7 +95,7 @@ class Indexer:
             stopwords = PYTHON_STOPWORDS if file_name.endswith(".py") \
                 else TEXT_STOPWORDS
         else:
-            stopwords = set()
+            stopwords = TEXT_STOPWORDS
         for punc in PUNCTUATION:
             text = text.replace(punc, " ")
         result = [t for t in text.split() if t.lower() not in stopwords
