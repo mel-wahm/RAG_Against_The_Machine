@@ -42,7 +42,7 @@ class MinimalSearchResults(BaseModel):
     retrieved_sources: List[MinimalSource]
 
 
-class MinimalAnswer(MinimalSearchResults):  
+class MinimalAnswer(MinimalSearchResults):
     """Represents a search result with an answer."""
 
     answer: str
