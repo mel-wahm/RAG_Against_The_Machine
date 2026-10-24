@@ -3,6 +3,7 @@ from src.chunker import Chunker
 from pathlib import Path
 import re
 from math import log
+from heapq import nlargest
 
 query = "self"
 
@@ -41,6 +42,9 @@ class Indexer:
         self.chunks_length = []
         self.index = self.indexing()
         self.chunks_average_length = sum(self.chunks_length) / len(self.chunks)
+        self.chunks_length_penalty = []
+        for length in self.chunks_length:
+            self.chunks_length_penalty.append(k * (1 - b + b * (length / self.chunks_average_length)))
 
     def read_chunks(self, folder_path: str) -> dict[str, str]:
         files = [str(file) for file in Path(folder_path).rglob("*")
@@ -69,18 +73,17 @@ class Indexer:
 
     def bm25(self, query: str, top_k: int) -> list[tuple[int, int]]:
         scores = {x:0 for x in range(len(self.chunks))}
-        b = self.b
         k = self.k
         for token in self.tokenizer(query):
             if not token in self.index:
                 continue
+            muliplier = 1.4 if "_" in token else 1
             idf = self.calculate_idf(token)
             for chunk, tf in self.index[token].items():
                 bast = tf * (k + 1)
-                maqam = tf + k * (1 - b + b *  (self.chunks_length[chunk]
-                                              / self.chunks_average_length))
-                scores[chunk] += idf * (bast / maqam)
-        scores = sorted(scores.items(), key=lambda elem: elem[1], reverse=True)[:top_k]
+                maqam = tf + self.chunks_length_penalty[chunk]
+                scores[chunk] += idf * (bast / maqam) * muliplier
+        scores = nlargest(top_k, scores.items(), key=lambda elem: elem[1])
         return scores
 
     def tokenizer(self, text: str, file_name: str = "") -> list[str]:

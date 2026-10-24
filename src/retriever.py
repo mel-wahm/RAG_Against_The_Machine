@@ -1,7 +1,7 @@
 import json
 from src.models import StudentSearchResults, MinimalSearchResults
-from indexer import Indexer
-from chunker import Chunker
+from src.indexer import Indexer
+from src.chunker import Chunker
 
 class Retriever():
     def __init__(self,
@@ -48,6 +48,6 @@ class Retriever():
         with open(self.output_file, "w") as f:
             f.write(student_answers.model_dump_json(indent=4))
 
-document_type = "docs"
-question_file = "data/datasets/UnansweredQuestions/dataset_docs_public.json"
-Retriever(document_type=document_type, questions_file=question_file)
+document_type = "code"
+question_file = "data/datasets/UnansweredQuestions/dataset_code_public.json"
+RET = Retriever(document_type=document_type, questions_file=question_file)
