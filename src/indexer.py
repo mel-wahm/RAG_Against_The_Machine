@@ -111,19 +111,19 @@ class Indexer:
 
     def indexing(self) -> dict[str, dict[int, int]]:
         index: dict[str, dict[int, int]] = {}
-        for num, chunk in enumerate(self.chunks):
+        for chunk_number, chunk in enumerate(self.chunks):
             tokens = self.tokenizer(self.content[chunk.file_path]
                                     [chunk.first_character_index:
                                     chunk.last_character_index],
-                                    chunk.file_path)
+                                    chunk.file_path) + self.tokenizer(chunk.file_path)
             for word in tokens:
                 if word in index:
-                    if num in index[word]:
-                        index[word][num] += 1
+                    if chunk_number in index[word]:
+                        index[word][chunk_number] += 1
                     else:
-                        index[word][num] = 1
+                        index[word][chunk_number] = 1
                 else:
-                    index[word] = {num: 1}
+                    index[word] = {chunk_number: 1}
             self.chunks_length.append(len(tokens))
         return index
 

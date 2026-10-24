@@ -53,6 +53,6 @@ class Retriever():
             f.write(student_answers.model_dump_json(indent=4))
 
 
-document_type = "code"
-question_file = "data/datasets/UnansweredQuestions/dataset_code_public.json"
+document_type = "docs"
+question_file = "data/datasets/UnansweredQuestions/dataset_docs_public.json"
 RET = Retriever(document_type=document_type, questions_file=question_file)
