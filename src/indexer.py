@@ -5,6 +5,7 @@ import re
 from math import log
 from heapq import nlargest
 from collections import defaultdict
+from tqdm import tqdm
 
 query = "self"
 
@@ -76,7 +77,7 @@ class Indexer:
         return scores
 
     def bm25(self, query: str, top_k: int) -> list[tuple[int, float]]:
-        scores = defaultdict(float)
+        scores: defaultdict[int, float] = defaultdict(float)
         k = self.k
         for token in self.tokenizer(query):
             if token not in self.index:
@@ -112,11 +113,15 @@ class Indexer:
 
     def indexing(self) -> dict[str, dict[int, int]]:
         index: dict[str, dict[int, int]] = {}
-        for chunk_number, chunk in enumerate(self.chunks):
-            tokens = self.tokenizer(self.content[chunk.file_path]
-                                    [chunk.first_character_index:
-                                    chunk.last_character_index],
-                                    chunk.file_path) + self.tokenizer(chunk.file_path)
+        for chunk_number, chunk in enumerate(
+            tqdm(self.chunks, desc="Indexing chunks")
+        ):
+            content_tokens = self.tokenizer(
+                self.content[chunk.file_path]
+                [chunk.first_character_index:chunk.last_character_index],
+                chunk.file_path,
+            )
+            tokens = content_tokens + self.tokenizer(chunk.file_path)
             for word in tokens:
                 if word in index:
                     if chunk_number in index[word]:

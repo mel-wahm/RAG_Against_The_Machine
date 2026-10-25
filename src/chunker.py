@@ -1,6 +1,7 @@
 import ast
 from pathlib import Path
 from src.models import MinimalSource
+from tqdm import tqdm
 
 
 class Buffer:
@@ -64,11 +65,11 @@ class Chunker:
 
     def create_chunks(self) -> list[MinimalSource]:
         chunks: list[MinimalSource] = []
-        for file in self.python_files:
+        for file in tqdm(self.python_files, desc="Chunking Python"):
             chunks.extend(self.python_chunker(file))
-        for file in self.markdown_files:
+        for file in tqdm(self.markdown_files, desc="Chunking Markdown"):
             chunks.extend(self.markdown_chunker(file))
-        for file in self.text_files:
+        for file in tqdm(self.text_files, desc="Chunking Text"):
             chunks.extend(self.text_chunker(file))
         return chunks
 
