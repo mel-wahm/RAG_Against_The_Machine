@@ -4,6 +4,7 @@ from pathlib import Path
 import re
 from math import log
 from heapq import nlargest
+from collections import defaultdict
 
 query = "self"
 
@@ -36,16 +37,19 @@ TEXT_STOPWORDS = {
 
 class Indexer:
     def __init__(self, chunks: list[MinimalSource],
-                 k: float = 1.2, b: float = 0.8) -> None:
+                 k: float = 1.2) -> None:
         self.chunks = chunks
-        self.k = k
-        self.b = b
+        # self.k = k
         self.content = self.read_chunks("data/raw")
         self.chunks_length: list[int] = []
         self.index = self.indexing()
         self.chunks_average_length = sum(self.chunks_length) / len(self.chunks)
         self.penalty = []
-        for length in self.chunks_length:
+        for num, length in enumerate(self.chunks_length):
+            if any(self.chunks[num].file_path.endswith(ext) for ext in (".py", ".c")):
+                b = 0.2
+            else:
+                b = 0.9
             self.penalty.append(k * (1 - b + b * (length /
                                                   self.chunks_average_length)))
 
@@ -75,14 +79,18 @@ class Indexer:
         return scores
 
     def bm25(self, query: str, top_k: int) -> list[tuple[int, float]]:
-        scores = {x: 0.0 for x in range(len(self.chunks))}
-        k = self.k
+        scores = defaultdict(float)
+        # k = self.k
         for token in self.tokenizer(query):
             if token not in self.index:
                 continue
             muliplier = 1.4 if "_" in token else 1
             idf = self.calculate_idf(token)
             for chunk, tf in self.index[token].items():
+                if self.chunks[chunk].file_path.endswith(".py"):
+                    k = 1.4
+                else:
+                    k = 1.8
                 bast = tf * (k + 1)
                 maqam = tf + self.penalty[chunk]
                 scores[chunk] += idf * (bast / maqam) * muliplier
@@ -115,7 +123,8 @@ class Indexer:
             tokens = self.tokenizer(self.content[chunk.file_path]
                                     [chunk.first_character_index:
                                     chunk.last_character_index],
-                                    chunk.file_path) + self.tokenizer(chunk.file_path)
+                                    chunk.file_path) + \
+                                    self.tokenizer(chunk.file_path)
             for word in tokens:
                 if word in index:
                     if chunk_number in index[word]:

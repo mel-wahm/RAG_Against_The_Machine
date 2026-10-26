@@ -6,21 +6,12 @@ from src.chunker import Chunker
 
 class Retriever():
     def __init__(self,
-                 document_type: str = "code",
+                 chunks: Chunker,
                  output_file: str = "answers.json",
                  questions_file: str =
                  "data/datasets/UnansweredQuestions/dataset_code_public.json",
                  k: int = 5):
-        self.document_type = document_type
-        chunks = Chunker(2000, "data/raw").chunks
-        if self.document_type == "code":
-            self.indexer = Indexer([chunk for chunk in chunks if
-                                    chunk.file_path.endswith(".py")],
-                                   0.5, 0.8)
-        else:
-            self.indexer = Indexer([chunk for chunk in chunks if not
-                                    chunk.file_path.endswith(".py")],
-                                   1.4, 0.75)
+        self.indexer = Indexer(chunks)
         self.k = k
         self.output_file = output_file
         self.questions_file = questions_file
@@ -51,8 +42,3 @@ class Retriever():
                                                k=self.k)
         with open(self.output_file, "w") as f:
             f.write(student_answers.model_dump_json(indent=4))
-
-
-document_type = "docs"
-question_file = "data/datasets/UnansweredQuestions/dataset_docs_public.json"
-RET = Retriever(document_type=document_type, questions_file=question_file)
