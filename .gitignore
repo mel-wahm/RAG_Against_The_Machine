@@ -10,7 +10,11 @@ data/
 .pytest_cache/
 moulinette-ubuntu
 exam_retrieval.sh
-answers.json
+docs_answers.json
+code_answers.json
+chunks_length.pkl
+chunks.pkl
+index.pkl
 
 # Virtual environments
 .venv

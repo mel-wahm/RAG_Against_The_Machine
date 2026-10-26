@@ -142,7 +142,7 @@ class Chunker:
         end: int,
         spans: list[tuple[int, int]],
         source: str,
-        overlap: int = 150,
+        overlap: int = 250,
     ) -> None:
         """
         Splits an oversized node into line-based chunks under max_size.

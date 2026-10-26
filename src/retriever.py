@@ -1,12 +1,13 @@
 import json
-from src.models import StudentSearchResults, MinimalSearchResults
+from src.models import StudentSearchResults, MinimalSearchResults, \
+    MinimalSource
 from src.indexer import Indexer
-from src.chunker import Chunker
+from tqdm import tqdm
 
 
 class Retriever():
     def __init__(self,
-                 chunks: Chunker,
+                 chunks: list[MinimalSource],
                  output_file: str = "answers.json",
                  questions_file: str =
                  "data/datasets/UnansweredQuestions/dataset_code_public.json",
@@ -26,7 +27,7 @@ class Retriever():
 
     def answer_questions(self) -> list[MinimalSearchResults]:
         answers = []
-        for q in self.questions:
+        for q in tqdm(self.questions, desc="Answering the questions"):
             chunks = []
             top_scores = self.indexer.bm25(q["question"], self.k)
             for score in top_scores:

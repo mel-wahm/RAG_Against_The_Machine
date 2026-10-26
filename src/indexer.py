@@ -1,3 +1,4 @@
+from typing import cast
 from src.models import MinimalSource
 from src.chunker import Chunker
 from pathlib import Path
@@ -5,8 +6,12 @@ import re
 from math import log
 from heapq import nlargest
 from collections import defaultdict
+from tqdm import tqdm
 
-query = "self"
+code_k = 1.0
+code_b = 0.3
+docs_k = 1.6
+docs_b = 0.75
 
 PUNCTUATION = {
     '!', '"', '#', '$', '%', '&', "'", '(', ')', '*', '+', ',', '-',
@@ -15,7 +20,8 @@ PUNCTUATION = {
 }
 
 PYTHON_STOPWORDS = {
-    "self", "cls"
+    "self", "cls", "in", "can", "where", "does",
+    "for", "from", "as", "if", "while", "is", "not", "and", "or"
 }
 
 TEXT_STOPWORDS = {
@@ -36,22 +42,24 @@ TEXT_STOPWORDS = {
 
 
 class Indexer:
-    def __init__(self, chunks: list[MinimalSource],
-                 k: float = 1.2) -> None:
+    def __init__(self, chunks: list[MinimalSource]) -> None:
         self.chunks = chunks
-        # self.k = k
         self.content = self.read_chunks("data/raw")
         self.chunks_length: list[int] = []
         self.index = self.indexing()
         self.chunks_average_length = sum(self.chunks_length) / len(self.chunks)
         self.penalty = []
         for num, length in enumerate(self.chunks_length):
-            if any(self.chunks[num].file_path.endswith(ext) for ext in (".py", ".c")):
-                b = 0.2
+            chunk_type = self.chunks[num].file_path.endswith(".py")
+            if chunk_type:
+                k = code_k
+                b = code_b
             else:
-                b = 0.9
-            self.penalty.append(k * (1 - b + b * (length /
-                                                  self.chunks_average_length)))
+                k = docs_k
+                b = docs_b
+            self.penalty.append(
+                k * (1 - b + b * (length / self.chunks_average_length))
+            )
 
     def read_chunks(self, folder_path: str) -> dict[str, str]:
         files = [str(file) for file in Path(folder_path).rglob("*")
@@ -79,18 +87,18 @@ class Indexer:
         return scores
 
     def bm25(self, query: str, top_k: int) -> list[tuple[int, float]]:
-        scores = defaultdict(float)
-        # k = self.k
+        scores: defaultdict = defaultdict(float)
         for token in self.tokenizer(query):
             if token not in self.index:
                 continue
             muliplier = 1.4 if "_" in token else 1
             idf = self.calculate_idf(token)
             for chunk, tf in self.index[token].items():
-                if self.chunks[chunk].file_path.endswith(".py"):
-                    k = 1.4
+                chunk_type = self.chunks[chunk].file_path.endswith(".py")
+                if chunk_type:
+                    k = code_k
                 else:
-                    k = 1.8
+                    k = docs_k
                 bast = tf * (k + 1)
                 maqam = tf + self.penalty[chunk]
                 scores[chunk] += idf * (bast / maqam) * muliplier
@@ -102,7 +110,7 @@ class Indexer:
             stopwords = PYTHON_STOPWORDS if file_name.endswith(".py") \
                 else TEXT_STOPWORDS
         else:
-            stopwords = set()
+            stopwords = TEXT_STOPWORDS
         for punc in PUNCTUATION:
             text = text.replace(punc, " ")
         result = [t for t in text.split() if t.lower() not in stopwords
@@ -119,12 +127,13 @@ class Indexer:
 
     def indexing(self) -> dict[str, dict[int, int]]:
         index: dict[str, dict[int, int]] = {}
-        for chunk_number, chunk in enumerate(self.chunks):
+        for chunk_number, chunk in enumerate(tqdm(self.chunks,
+                                                  desc="Indexing chunks")):
             tokens = self.tokenizer(self.content[chunk.file_path]
                                     [chunk.first_character_index:
                                     chunk.last_character_index],
                                     chunk.file_path) + \
-                                    self.tokenizer(chunk.file_path)
+                                    self.tokenizer(chunk.file_path) * 3
             for word in tokens:
                 if word in index:
                     if chunk_number in index[word]:
@@ -134,6 +143,7 @@ class Indexer:
                 else:
                     index[word] = {chunk_number: 1}
             self.chunks_length.append(len(tokens))
+
         return index
 
 
