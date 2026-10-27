@@ -1,6 +1,4 @@
-from typing import cast
 from src.models import MinimalSource
-from src.chunker import Chunker
 from pathlib import Path
 import re
 from math import log
@@ -10,8 +8,8 @@ from tqdm import tqdm
 
 code_k = 1.0
 code_b = 0.3
-docs_k = 1.6
-docs_b = 0.75
+docs_k = 1.8
+docs_b = 0.65
 
 PUNCTUATION = {
     '!', '"', '#', '$', '%', '&', "'", '(', ')', '*', '+', ',', '-',
@@ -37,6 +35,7 @@ TEXT_STOPWORDS = {
     "can", "could", "may", "might", "must", "shall", "should",
     "will", "would",
     "not", "no", "so", "very", "just", "also", "only", "each",
+    "what", "how", "which", "where", "who", "why", "whose", "whom",
     "all", "any", "some"
     }
 
@@ -91,7 +90,7 @@ class Indexer:
         for token in self.tokenizer(query):
             if token not in self.index:
                 continue
-            muliplier = 1.4 if "_" in token else 1
+            muliplier = 3 if "_" in token else 1
             idf = self.calculate_idf(token)
             for chunk, tf in self.index[token].items():
                 chunk_type = self.chunks[chunk].file_path.endswith(".py")
@@ -114,16 +113,17 @@ class Indexer:
         for punc in PUNCTUATION:
             text = text.replace(punc, " ")
         result = [t for t in text.split() if t.lower() not in stopwords
-                  and not t.isdigit()]
+                  and not t.isdigit() and len(t) > 1]
         new = []
         for token in result:
             res = self.split_camel(token)
-            if len(res) > 1:
-                new.extend(res)
+            new.extend(res)
             if "_" in token:
                 new.extend(map(lambda x: x.lower(), token.split("_")))
-        return list(map(lambda x: x.lower(), result)) + \
-            [piece for piece in new if piece and piece not in stopwords]
+        return list(map(lambda x: x.lower(), result)) + [
+            piece for piece in new
+            if len(piece) > 1 and piece not in stopwords
+        ]
 
     def indexing(self) -> dict[str, dict[int, int]]:
         index: dict[str, dict[int, int]] = {}
@@ -148,8 +148,15 @@ class Indexer:
 
 
 if __name__ == "__main__":
-    indexer = Indexer(Chunker(2000, "data/raw").chunks)
+    import pickle
+    with open("chunks.pkl", "rb") as f:
+        chunks = pickle.load(f)
+    indexer = Indexer(chunks)
     query = "What is the default timeout value for vLLM RPC operations?"
-    scores = indexer.bm25(query, 5)
+    scores = indexer.bm25(query, 3)
     for chunk, score in scores:
-        print(indexer.chunks[chunk].file_path)
+        fp = indexer.chunks[chunk].file_path
+        s = indexer.chunks[chunk].first_character_index
+        e = indexer.chunks[chunk].last_character_index
+        print(Path(fp).read_text()[s:e])
+        print("-" * 30 + "\n")

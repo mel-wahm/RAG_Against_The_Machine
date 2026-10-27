@@ -1,8 +1,8 @@
 from src.retriever import Retriever
+from src.chunker import Chunker
 import pickle
 
-with open("chunks.pkl", "rb") as f:
-    chunks = pickle.load(f)
+chunks = Chunker(2000, "data/raw").chunks
 
 retty = Retriever(chunks, "code_answers.json",
                   questions_file="data/datasets/"
