@@ -26,39 +26,40 @@ class RAG():
     def __init__(self) -> None:
         pass
 
-    def index(self, max_chunk_size=1600) -> None:
-        chunks = load_or_build(Path("data/processed/chunks.pkl"),
-                               lambda: Chunker(max_chunk_size, "data/raw").chunks)
-        index = load_or_build(Path("data/processed/index.pkl"),
-                              lambda: Indexer(chunks))
-        assert type(index) is Indexer
+    def index(self, max_chunk_size: int = 1600) -> None:
+        Path("data/processed").mkdir(parents=True, exist_ok=True)
+        with open("data/processed/chunks.pkl", "wb") as f:
+            chunks = Chunker(max_chunk_size, "data/raw").chunks
+            pickle.dump(chunks, f)
+        with open("data/processed/index.pkl", "wb") as f:
+            index = Indexer(chunks)
+            pickle.dump(index, f)
 
-    def search(self, query, k=5):
+    def search(self, query: str, k: int = 5) -> None:
         try:
             with open("data/processed/index.pkl", "rb") as f:
-                index : Indexer = pickle.load(f)
+                index: Indexer = pickle.load(f)
             scores = index.bm25(query, k)
             for score in scores:
                 chunk = index.chunks[score[0]]
                 print(f"{chunk.file_path}, "
-                    f"[{chunk.first_character_index}:"
-                    f"{chunk.last_character_index}] "
-                    f"score: {score[1]:.3f}")
+                      f"[{chunk.first_character_index}:"
+                      f"{chunk.last_character_index}] "
+                      f"score: {score[1]:.3f}")
         except Exception:
             raise Exception("No indeces available, please run \"uv run -m "
                             "src index --max_chunk_size=<int>\" first")
 
-    def search_dataset(self, dataset_path: str, k: int,
-                       save_directory: str) -> None:
+    def search_dataset(self, dataset_path: str, k: int = 5,
+                       save_directory: str = "output") -> None:
         if k > 15:
             raise ValueError("K must be between 1 and 15")
-        try:
-            with open("data/processed/index.pkl", "rb") as f:
-                index = pickle.load(f)
-            Retriever(index).answer_dataset(dataset_path, save_directory, k)
-        except Exception:
-            raise Exception("No indeces available, please run \"uv run -m "
-                            "src index --max_chunk_size=<int>\" first")
+        chunks = load_or_build(Path("data/processed/chunks.pkl"),
+                               lambda: Chunker(1600, "data/raw").chunks)
+        index = load_or_build(Path("data/processed/index.pkl"),
+                              lambda: Indexer(chunks))
+        Retriever(index).answer_dataset(dataset_path, save_directory, k)
+
 
 fire.Fire(
     RAG

@@ -26,6 +26,7 @@ class Retriever():
             answers.append(answer)
         student_answers = StudentSearchResults(search_results=answers,
                                                k=k)
-        Path(save_directory).parent.mkdir(parents=True, exist_ok=True)
-        with open(save_directory, "w") as f:
+        output_file = Path(questions_file).name
+        Path(save_directory).mkdir(parents=True, exist_ok=True)
+        with open(Path(save_directory) / Path(output_file), "w") as f:
             f.write(student_answers.model_dump_json(indent=4))

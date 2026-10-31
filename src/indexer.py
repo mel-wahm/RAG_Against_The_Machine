@@ -51,13 +51,11 @@ class Indexer:
         for num, length in enumerate(self.chunks_length):
             chunk_type = self.chunks[num].file_path.endswith(".py")
             if chunk_type:
-                k = code_k
                 b = code_b
             else:
-                k = docs_k
                 b = docs_b
             self.penalty.append(
-                k * (1 - b + b * (length / self.chunks_average_length))
+                1 - b + b * (length / self.chunks_average_length)
             )
 
     def read_chunks(self, folder_path: str) -> dict[str, str]:
@@ -89,7 +87,7 @@ class Indexer:
         scores: defaultdict = defaultdict(float)
         for token in self.tokenizer(query):
             if token not in self.index:
-                continue 
+                continue
             muliplier = 3 if "_" in token else 1
             idf = self.calculate_idf(token)
             for chunk, tf in self.index[token].items():
@@ -99,7 +97,7 @@ class Indexer:
                 else:
                     k = docs_k
                 bast = tf * (k + 1)
-                maqam = tf + self.penalty[chunk]
+                maqam = tf + k * self.penalty[chunk]
                 scores[chunk] += idf * (bast / maqam) * muliplier
         new_scores = nlargest(top_k, scores.items(), key=lambda elem: elem[1])
         return new_scores
