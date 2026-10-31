@@ -76,7 +76,7 @@ class Indexer:
 
     def split_camel(self, text: str) -> list[str]:
         text = re.sub(r"([a-z0-9])([A-Z])", r"\1 \2", text)
-        text = re.sub(r"([A-Z]+)([A-Z][a-z])", r"\1 \2", text)
+        text = re.sub(r"([A-Z])([A-Z][a-z])", r"\1 \2", text)
         return list(map(lambda x: x.lower(), text.split()))
 
     def calculate_idf(self, token: str) -> float:
@@ -89,7 +89,7 @@ class Indexer:
         scores: defaultdict = defaultdict(float)
         for token in self.tokenizer(query):
             if token not in self.index:
-                continue
+                continue 
             muliplier = 3 if "_" in token else 1
             idf = self.calculate_idf(token)
             for chunk, tf in self.index[token].items():
@@ -145,18 +145,3 @@ class Indexer:
             self.chunks_length.append(len(tokens))
 
         return index
-
-
-if __name__ == "__main__":
-    import pickle
-    with open("chunks.pkl", "rb") as f:
-        chunks = pickle.load(f)
-    indexer = Indexer(chunks)
-    query = "What is the default timeout value for vLLM RPC operations?"
-    scores = indexer.bm25(query, 3)
-    for chunk, score in scores:
-        fp = indexer.chunks[chunk].file_path
-        s = indexer.chunks[chunk].first_character_index
-        e = indexer.chunks[chunk].last_character_index
-        print(Path(fp).read_text()[s:e])
-        print("-" * 30 + "\n")

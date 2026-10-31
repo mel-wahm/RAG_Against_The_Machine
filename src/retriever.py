@@ -1,45 +1,31 @@
 import json
-from src.models import StudentSearchResults, MinimalSearchResults, \
-    MinimalSource
+from src.models import StudentSearchResults, MinimalSearchResults
 from src.indexer import Indexer
 from tqdm import tqdm
+from pathlib import Path
 
 
 class Retriever():
-    def __init__(self,
-                 chunks: list[MinimalSource],
-                 output_file: str = "answers.json",
-                 questions_file: str =
-                 "data/datasets/UnansweredQuestions/dataset_code_public.json",
-                 k: int = 5):
-        self.indexer = Indexer(chunks)
-        self.k = k
-        self.output_file = output_file
-        self.questions_file = questions_file
-        self.questions = self.read_questions()
-        self.answers = self.answer_questions()
-        self.output_answers()
+    def __init__(self, index: Indexer) -> None:
+        self.index = index
 
-    def read_questions(self) -> list[dict[str, str]]:
-        with open(self.questions_file) as f:
+    def answer_dataset(self, questions_file: str,
+                       save_directory: str, k: int) -> None:
+        with open(questions_file) as f:
             questions: dict[str, list[dict[str, str]]] = json.load(f)
-        return questions["rag_questions"]
-
-    def answer_questions(self) -> list[MinimalSearchResults]:
+        rag_questions: list[dict[str, str]] = questions["rag_questions"]
         answers = []
-        for q in tqdm(self.questions, desc="Answering the questions"):
+        for q in tqdm(rag_questions, desc="Answering the questions"):
             chunks = []
-            top_scores = self.indexer.bm25(q["question"], self.k)
+            top_scores = self.index.bm25(q["question"], k)
             for score in top_scores:
-                chunks.append(self.indexer.chunks[score[0]])
+                chunks.append(self.index.chunks[score[0]])
             answer = MinimalSearchResults(question_id=q["question_id"],
                                           question=q["question"],
                                           retrieved_sources=chunks)
             answers.append(answer)
-        return answers
-
-    def output_answers(self) -> None:
-        student_answers = StudentSearchResults(search_results=self.answers,
-                                               k=self.k)
-        with open(self.output_file, "w") as f:
+        student_answers = StudentSearchResults(search_results=answers,
+                                               k=k)
+        Path(save_directory).parent.mkdir(parents=True, exist_ok=True)
+        with open(save_directory, "w") as f:
             f.write(student_answers.model_dump_json(indent=4))
