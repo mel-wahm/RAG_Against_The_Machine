@@ -52,8 +52,6 @@ class RAG():
 
     def search_dataset(self, dataset_path: str, k: int = 5,
                        save_directory: str = "output") -> None:
-        if k > 15:
-            raise ValueError("K must be between 1 and 15")
         chunks = load_or_build(Path("data/processed/chunks.pkl"),
                                lambda: Chunker(1600, "data/raw").chunks)
         index = load_or_build(Path("data/processed/index.pkl"),

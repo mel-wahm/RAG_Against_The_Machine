@@ -5,7 +5,7 @@ from tqdm import tqdm
 from pathlib import Path
 
 
-class Retriever():
+class Retriever:
     def __init__(self, index: Indexer) -> None:
         self.index = index
 
