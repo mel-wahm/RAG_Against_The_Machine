@@ -60,15 +60,28 @@ class RAG():
         Retriever(index).answer_dataset(dataset_path, save_directory, k)
 
     def answer(self, query: str, k: int = 1) -> None:
-        with open("data/processed/index.pkl", "rb") as f:
-            index: Indexer = pickle.load(f)
+        chunks = load_or_build(Path("data/processed/chunks.pkl"),
+                               lambda: Chunker(1600, "data/raw").chunks)
+        index = load_or_build(Path("data/processed/index.pkl"),
+                              lambda: Indexer(chunks))
         scores = index.bm25(query, k)
         retrieved_chunks = [index.chunks[score] for score, _ in scores]
         model = LLM()
         full_prompt = model.prepare_prompt(query, retrieved_chunks)
         print(model.answer_a_question(full_prompt))
 
+    def answer_dataset(
+        self, student_search_results_path: str,
+        save_directory: str = "output"
+    ) -> None:
+        LLM().answer_dataset(student_search_results_path, save_directory)
 
-fire.Fire(
-    RAG
-)
+
+try:
+    fire.Fire(
+        RAG
+    )
+except Exception as e:
+    print(e)
+except KeyboardInterrupt:
+    print("See yu..")
