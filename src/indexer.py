@@ -39,7 +39,6 @@ TEXT_STOPWORDS = {
     "all", "any", "some"
     }
 
-
 class Indexer:
     def __init__(self, chunks: list[MinimalSource]) -> None:
         self.chunks = chunks

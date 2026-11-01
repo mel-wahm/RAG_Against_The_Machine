@@ -1,6 +1,8 @@
 from src.retriever import Retriever
 from src.chunker import Chunker
 from src.indexer import Indexer
+from src.models import MinimalSource
+from src.generator import LLM
 from typing import Callable, Any
 import fire
 import pickle
@@ -35,7 +37,7 @@ class RAG():
             index = Indexer(chunks)
             pickle.dump(index, f)
 
-    def search(self, query: str, k: int = 5) -> None:
+    def search(self, query: str, k: int = 5) ->None:
         try:
             with open("data/processed/index.pkl", "rb") as f:
                 index: Indexer = pickle.load(f)
@@ -57,6 +59,15 @@ class RAG():
         index = load_or_build(Path("data/processed/index.pkl"),
                               lambda: Indexer(chunks))
         Retriever(index).answer_dataset(dataset_path, save_directory, k)
+
+    def answer(self, query: str, k: int = 5):
+        with open("data/processed/index.pkl", "rb") as f:
+            index: Indexer = pickle.load(f)
+        scores = index.bm25(query, k)
+        retrieved_chunks = [index.chunks[score] for score, _ in scores]
+        model = LLM()
+        full_prompt = model.prepare_prompt(query, retrieved_chunks)
+        model.answer_a_question(full_prompt)
 
 
 fire.Fire(
