@@ -8,13 +8,6 @@ wheels/
 data/
 .mypy_cache/
 .pytest_cache/
-moulinette-ubuntu
-exam_retrieval.sh
-docs_answers.json
-code_answers.json
-chunks_length.pkl
-chunks.pkl
-index.pkl
 
 # Virtual environments
 .venv

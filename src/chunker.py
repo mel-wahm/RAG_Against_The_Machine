@@ -38,7 +38,7 @@ class Buffer:
 class Chunker:
     """
     takes in a path to folder, and chunks the supported files into
-    meaninful chunks to better optimize the answers we get with AI
+    meaningful chunks to better optimize the answers we get with AI
     """
 
     def __init__(self, max_size: int, data_path: str) -> None:
@@ -180,10 +180,10 @@ class Chunker:
             overlap_line = end_line
             overlap_length = 0
             while overlap_line > start_line + 1:
-                prev_endgth = len(lines[overlap_line - 1])
-                if prev_endgth + overlap_length <= overlap:
+                prev_length = len(lines[overlap_line - 1])
+                if prev_length + overlap_length <= overlap:
                     overlap_line -= 1
-                    overlap_length += prev_endgth
+                    overlap_length += prev_length
                 else:
                     break
             start_line = overlap_line

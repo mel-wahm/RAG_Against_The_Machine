@@ -64,36 +64,34 @@ class LLM:
         ).strip()
         return answer
 
-    def answer_dataset(
-        self, student_search_results_path: str, save_directory: str
-    ) -> None:
-        with open(student_search_results_path, "r", encoding="utf-8") as f:
+    def answer_dataset(self, student_search_results_path: str,
+                       save_directory: str) -> None:
+
+        with open(student_search_results_path) as f:
             data = json.load(f)
-        student_search = StudentSearchResults.model_validate(data)
-
-        answers: list[MinimalAnswer] = []
-        for result in tqdm(
-            student_search.search_results, desc="Generating answers"
-        ):
-            context_chunks = result.retrieved_sources[:1]
-            prompt = self.prepare_prompt(result.question, context_chunks)
-            ans_text = self.answer_a_question(prompt)
-            answers.append(
-                MinimalAnswer(
-                    question_id=result.question_id,
-                    question=result.question,
-                    retrieved_sources=result.retrieved_sources,
-                    answer=ans_text,
-                )
-            )
-
-        final_results = StudentSearchResultsAndAnswer(
+        answers = []
+        search_results = StudentSearchResults.model_validate(data)
+        for search in tqdm(search_results.search_results,
+                           desc="Answering the dataset questions"):
+            query = search.question
+            context = search.retrieved_sources
+            prompt = self.prepare_prompt(query, context[:1])
+            answer = self.answer_a_question(prompt)
+            answers.append(MinimalAnswer(
+                question_id=search.question_id,
+                question=search.question,
+                retrieved_sources=context,
+                answer=answer
+            ))
+        final_result = StudentSearchResultsAndAnswer(
             search_results=answers,
-            k=student_search.k,
+            k=search_results.k
         )
-
-        out_dir = Path(save_directory)
-        out_dir.mkdir(parents=True, exist_ok=True)
-        out_file = out_dir / Path(student_search_results_path).name
-        with open(out_file, "w", encoding="utf-8") as f:
-            f.write(final_results.model_dump_json(indent=4))
+        path_name = Path(student_search_results_path).name
+        save_dir = Path(save_directory)
+        save_dir.mkdir(parents=True, exist_ok=True)
+        save_file = save_dir / path_name
+        with open(save_file, "w") as f:
+            f.write(final_result.model_dump_json(
+                indent=4
+            ))

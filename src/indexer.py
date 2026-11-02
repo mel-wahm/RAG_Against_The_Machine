@@ -88,7 +88,7 @@ class Indexer:
         for token in self.tokenizer(query):
             if token not in self.index:
                 continue
-            muliplier = 3 if "_" in token else 1
+            multiplier = 3 if "_" in token else 1
             idf = self.calculate_idf(token)
             for chunk, tf in self.index[token].items():
                 chunk_type = self.chunks[chunk].file_path.endswith(".py")
@@ -98,7 +98,7 @@ class Indexer:
                     k = docs_k
                 bast = tf * (k + 1)
                 maqam = tf + k * self.penalty[chunk]
-                scores[chunk] += idf * (bast / maqam) * muliplier
+                scores[chunk] += idf * (bast / maqam) * multiplier
         new_scores = nlargest(top_k, scores.items(), key=lambda elem: elem[1])
         return new_scores
 

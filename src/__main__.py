@@ -2,6 +2,8 @@ from src.retriever import Retriever
 from src.chunker import Chunker
 from src.indexer import Indexer
 from src.generator import LLM
+from src.models import StudentSearchResults, RagDataset
+from src.evaluator import Evaluator
 from typing import Callable, Any
 import fire
 import pickle
@@ -57,7 +59,7 @@ class RAG():
                                lambda: Chunker(1600, "data/raw").chunks)
         index = load_or_build(Path("data/processed/index.pkl"),
                               lambda: Indexer(chunks))
-        Retriever(index).answer_dataset(dataset_path, save_directory, k)
+        Retriever(index).search_dataset(dataset_path, save_directory, k)
 
     def answer(self, query: str, k: int = 1) -> None:
         chunks = load_or_build(Path("data/processed/chunks.pkl"),
@@ -76,12 +78,12 @@ class RAG():
     ) -> None:
         LLM().answer_dataset(student_search_results_path, save_directory)
 
+    def evaluate(
+        self, student_search_results_path: str,
+        dataset_path: str
+    ):
+        Evaluator(student_search_results_path, dataset_path).evaluate()
 
-try:
-    fire.Fire(
-        RAG
-    )
-except Exception as e:
-    print(e)
-except KeyboardInterrupt:
-    print("See yu..")
+fire.Fire(
+    RAG
+)
