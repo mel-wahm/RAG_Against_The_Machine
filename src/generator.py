@@ -54,8 +54,7 @@ class LLM:
         input_ids = self.tokenizer(message, return_tensors="pt")
         prompt_length = input_ids["input_ids"].shape[1]
 
-        with torch.inference_mode():
-            output_ids = self.model.generate(
+        output_ids = self.model.generate(
                 input_ids["input_ids"], max_new_tokens=80
             )
 

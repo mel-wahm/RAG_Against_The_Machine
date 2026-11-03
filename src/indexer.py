@@ -126,7 +126,9 @@ class Indexer:
     def indexing(self) -> dict[str, dict[int, int]]:
         index: dict[str, dict[int, int]] = {}
         for chunk_number, chunk in enumerate(tqdm(self.chunks,
-                                                  desc="Indexing chunks")):
+                                                  desc="Indexing chunks",
+                                                  colour="#1a9a68",
+                                                  ascii="  ▓▒░░")):
             tokens = self.tokenizer(self.content[chunk.file_path]
                                     [chunk.first_character_index:
                                     chunk.last_character_index],

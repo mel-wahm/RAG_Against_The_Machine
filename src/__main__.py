@@ -2,7 +2,6 @@ from src.retriever import Retriever
 from src.chunker import Chunker
 from src.indexer import Indexer
 from src.generator import LLM
-from src.models import StudentSearchResults, RagDataset
 from src.evaluator import Evaluator
 from typing import Callable, Any
 import fire
@@ -81,8 +80,9 @@ class RAG():
     def evaluate(
         self, student_search_results_path: str,
         dataset_path: str
-    ):
+    ) -> None:
         Evaluator(student_search_results_path, dataset_path).evaluate()
+
 
 fire.Fire(
     RAG
