@@ -34,7 +34,6 @@ class RagDataset(BaseModel):
 
 
 class MinimalSearchResults(BaseModel):
-
     """Represents the search results for a single question."""
 
     question_id: str

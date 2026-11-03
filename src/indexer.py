@@ -18,26 +18,21 @@ PUNCTUATION = {
 }
 
 PYTHON_STOPWORDS = {
-    "self", "cls", "in", "can", "where", "does",
-    "for", "from", "as", "if", "while", "is", "not", "and", "or"
+    "self", "cls", "in", "can", "where", "does", "for", "from", "as", "if",
+    "while", "is", "not", "and", "or"
 }
 
 TEXT_STOPWORDS = {
-    "a", "an", "the", "and", "or", "but", "nor",
-    "am", "is", "are", "was", "were", "be", "been", "being",
-    "do", "does", "did", "have", "has", "had",
-    "i", "me", "my", "we", "our", "you", "your", "he", "she",
-    "it", "they", "them",
-    "this", "that", "these", "those",
-    "of", "at", "by", "for", "from", "in", "into", "on", "onto",
-    "to", "with", "without",
-    "as", "if", "then", "than", "because", "while", "when", "where",
-    "can", "could", "may", "might", "must", "shall", "should",
-    "will", "would",
-    "not", "no", "so", "very", "just", "also", "only", "each",
-    "what", "how", "which", "where", "who", "why", "whose", "whom",
-    "all", "any", "some"
-    }
+    "a", "an", "the", "and", "or", "but", "nor", "am", "is", "are", "was",
+    "were", "be", "been", "being", "do", "does", "did", "have", "has", "had",
+    "i", "me", "my", "we", "our", "you", "your", "he", "she", "it", "they",
+    "them", "this", "that", "these", "those", "of", "at", "by", "for", "from",
+    "in", "into", "on", "onto", "to", "with", "without", "as", "if", "then",
+    "than", "because", "while", "when", "where", "can", "could", "may",
+    "might", "must", "shall", "should", "will", "would", "not", "no", "so",
+    "very", "just", "also", "only", "each", "what", "how", "which", "where",
+    "who", "why", "whose", "whom", "all", "any", "some"
+}
 
 
 class Indexer:
@@ -59,9 +54,13 @@ class Indexer:
             )
 
     def read_chunks(self, folder_path: str) -> dict[str, str]:
-        files = [str(file) for file in Path(folder_path).rglob("*")
-                 if any(str(file).endswith(prefix)
-                        for prefix in (".py", ".txt", ".md"))]
+        files = [
+            str(file)
+            for file in Path(folder_path).rglob("*")
+            if any(
+                str(file).endswith(prefix) for prefix in (".py", ".txt", ".md")
+            )
+        ]
         content: dict[str, str] = {}
         for file in files:
             try:
@@ -104,14 +103,20 @@ class Indexer:
 
     def tokenizer(self, text: str, file_name: str = "") -> list[str]:
         if file_name:
-            stopwords = PYTHON_STOPWORDS if file_name.endswith(".py") \
+            stopwords = (
+                PYTHON_STOPWORDS
+                if file_name.endswith(".py")
                 else TEXT_STOPWORDS
+            )
         else:
             stopwords = TEXT_STOPWORDS
         for punc in PUNCTUATION:
             text = text.replace(punc, " ")
-        result = [t for t in text.split() if t.lower() not in stopwords
-                  and not t.isdigit() and len(t) > 1]
+        result = [
+            t
+            for t in text.split()
+            if t.lower() not in stopwords and not t.isdigit() and len(t) > 1
+        ]
         new = []
         for token in result:
             res = self.split_camel(token)
@@ -119,21 +124,26 @@ class Indexer:
             if "_" in token:
                 new.extend(map(lambda x: x.lower(), token.split("_")))
         return list(map(lambda x: x.lower(), result)) + [
-            piece for piece in new
-            if len(piece) > 1 and piece not in stopwords
+            piece for piece in new if len(piece) > 1 and piece not in stopwords
         ]
 
     def indexing(self) -> dict[str, dict[int, int]]:
         index: dict[str, dict[int, int]] = {}
-        for chunk_number, chunk in enumerate(tqdm(self.chunks,
-                                                  desc="Indexing chunks",
-                                                  colour="#1a9a68",
-                                                  ascii="  ▓▒░░")):
-            tokens = self.tokenizer(self.content[chunk.file_path]
-                                    [chunk.first_character_index:
-                                    chunk.last_character_index],
-                                    chunk.file_path) + \
-                                    self.tokenizer(chunk.file_path) * 3
+        for chunk_number, chunk in enumerate(
+            tqdm(
+                self.chunks,
+                desc="Indexing chunks",
+                colour="#1a9a68",
+                ascii="  ▓▒░░",
+            )
+        ):
+            chunk_text = self.content[chunk.file_path][
+                chunk.first_character_index:chunk.last_character_index
+            ]
+            tokens = (
+                self.tokenizer(chunk_text, chunk.file_path)
+                + self.tokenizer(chunk.file_path) * 3
+            )
             for word in tokens:
                 if word in index:
                     if chunk_number in index[word]:

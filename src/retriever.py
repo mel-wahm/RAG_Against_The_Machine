@@ -9,25 +9,54 @@ class Retriever:
     def __init__(self, index: Indexer) -> None:
         self.index = index
 
-    def search_dataset(self, questions_file: str,
-                       save_directory: str, k: int) -> None:
-        with open(questions_file) as f:
-            questions: dict[str, list[dict[str, str]]] = json.load(f)
-        rag_questions: list[dict[str, str]] = questions["rag_questions"]
+    def search_dataset(
+        self, questions_file: str, save_directory: str, k: int
+    ) -> None:
+        path = Path(questions_file)
+        if not path.is_file():
+            print(f"Error: Questions file '{questions_file}' not found.")
+            return
+
+        try:
+            with open(path) as f:
+                questions = json.load(f)
+        except json.JSONDecodeError:
+            print(f"Error: File '{questions_file}' contains invalid JSON.")
+            return
+        except Exception as e:
+            print(f"Error reading '{questions_file}': {e}")
+            return
+
+        if not isinstance(questions, dict) or "rag_questions" not in questions:
+            print(
+                f"Error: File '{questions_file}' is missing 'rag_questions'."
+            )
+            return
+
+        rag_questions = questions["rag_questions"]
         answers = []
-        for q in tqdm(rag_questions, desc="Answering the questions",
-                      colour="#21ac77", ascii="  ▓▒░░"):
+        for q in tqdm(
+            rag_questions,
+            desc="Answering the questions",
+            colour="#21ac77",
+            ascii="  ▓▒░░",
+        ):
             chunks = []
-            top_scores = self.index.bm25(q["question"], k)
+            q_text = q.get("question", "") if isinstance(q, dict) else ""
+            q_id = q.get("question_id", "") if isinstance(q, dict) else ""
+            top_scores = self.index.bm25(q_text, k) if k > 0 else []
             for score in top_scores:
                 chunks.append(self.index.chunks[score[0]])
-            answer = MinimalSearchResults(question_id=q["question_id"],
-                                          question=q["question"],
-                                          retrieved_sources=chunks)
+            answer = MinimalSearchResults(
+                question_id=q_id, question=q_text, retrieved_sources=chunks
+            )
             answers.append(answer)
-        student_answers = StudentSearchResults(search_results=answers,
-                                               k=k)
-        output_file = Path(questions_file).name
-        Path(save_directory).mkdir(parents=True, exist_ok=True)
-        with open(Path(save_directory) / Path(output_file), "w") as f:
-            f.write(student_answers.model_dump_json(indent=4))
+        student_answers = StudentSearchResults(search_results=answers, k=k)
+        output_file = path.name
+        save_dir = Path(save_directory)
+        try:
+            save_dir.mkdir(parents=True, exist_ok=True)
+            with open(save_dir / output_file, "w") as f:
+                f.write(student_answers.model_dump_json(indent=4))
+        except Exception as e:
+            print(f"Error saving results to '{save_directory}': {e}")

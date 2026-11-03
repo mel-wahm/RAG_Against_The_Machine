@@ -65,20 +65,29 @@ class Chunker:
 
     def create_chunks(self) -> list[MinimalSource]:
         chunks: list[MinimalSource] = []
-        for file in tqdm(self.python_files, desc="Chunking Python",
-                         colour="#1DB078",
-                         unit=" chunk",
-                         ascii="  ▓▒░░"):
+        for file in tqdm(
+            self.python_files,
+            desc="Chunking Python",
+            colour="#1DB078",
+            unit=" chunk",
+            ascii="  ▓▒░░",
+        ):
             chunks.extend(self.python_chunker(file))
-        for file in tqdm(self.markdown_files, desc="Chunking Markdown",
-                         colour="#1DB078",
-                         unit=" chunk",
-                         ascii="  ▓▒░░"):
+        for file in tqdm(
+            self.markdown_files,
+            desc="Chunking Markdown",
+            colour="#1DB078",
+            unit=" chunk",
+            ascii="  ▓▒░░",
+        ):
             chunks.extend(self.markdown_chunker(file))
-        for file in tqdm(self.text_files, desc="Chunking Text",
-                         colour="#1DB078",
-                         unit=" chunk",
-                         ascii="  ▓▒░░"):
+        for file in tqdm(
+            self.text_files,
+            desc="Chunking Text",
+            colour="#1DB078",
+            unit=" chunk",
+            ascii="  ▓▒░░",
+        ):
             chunks.extend(self.text_chunker(file))
         return chunks
 
