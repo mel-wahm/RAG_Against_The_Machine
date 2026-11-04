@@ -1,4 +1,3 @@
-import sys
 from typing import Callable, Any
 from pathlib import Path
 import pickle
@@ -36,8 +35,8 @@ def load_or_build(path: Path, build: Callable) -> Any:
 
 
 class RAG:
-    def __init__(self) -> None:
-        pass
+    def __init__(self, data_file: str = "data/raw") -> None:
+        self.data_file = data_file
 
     def index(self, max_chunk_size: int = 1600) -> None:
         try:
@@ -51,20 +50,20 @@ class RAG:
         if not 200 <= size <= 2000:
             print("Error: max_chunk_size must be a between 200 and 2000.")
             return
-        if not Path("data/raw").exists():
-            print("Error: Raw data directory 'data/raw' not found.")
+        if not Path(self.data_file).exists():
+            print(f"Error: Raw data directory '{self.data_file}' not found.")
             return
         Path("data/processed").mkdir(parents=True, exist_ok=True)
         try:
             chunks_path = Path("data/processed/chunks.pkl")
-            chunks = Chunker(size, "data/raw").chunks
+            chunks = Chunker(size, self.data_file).chunks
             temp_chunks = chunks_path.with_suffix(".tmp")
             with open(temp_chunks, "wb") as f:
                 pickle.dump(chunks, f)
             temp_chunks.replace(chunks_path)
 
             index_path = Path("data/processed/index.pkl")
-            index = Indexer(chunks)
+            index = Indexer(chunks, self.data_file)
             temp_index = index_path.with_suffix(".tmp")
             with open(temp_index, "wb") as f:
                 pickle.dump(index, f)
@@ -113,23 +112,18 @@ class RAG:
         try:
             k_val = int(k)
         except (ValueError, TypeError):
-            try:
-                k_val = int(save_directory)
-                save_directory = str(k)
-            except (ValueError, TypeError):
-                print(
-                    f"Error: Invalid value for k: '{k}'. Must be an integer."
-                )
-                return
+            print(f"Error: Invalid value for k: '{k}'. Must be an integer.")
+            return
         if k_val <= 0:
-            print(f"Warning: k must be greater than 0 (received k={k_val}).")
+            print(f"Error: k must be greater than 0 (received k={k_val}).")
             return
         chunks = load_or_build(
             Path("data/processed/chunks.pkl"),
-            lambda: Chunker(1600, "data/raw").chunks,
+            lambda: Chunker(1600, self.data_file).chunks,
         )
         index = load_or_build(
-            Path("data/processed/index.pkl"), lambda: Indexer(chunks)
+            Path("data/processed/index.pkl"),
+            lambda: Indexer(chunks, self.data_file),
         )
         Retriever(index).search_dataset(dataset_path, save_directory, k_val)
 
@@ -143,14 +137,15 @@ class RAG:
             print(f"Error: Invalid value for k: '{k}'. Must be an integer.")
             return
         if k_val <= 0:
-            print(f"Warning: k must be greater than 0 (received k={k_val}).")
+            print(f"Error: k must be greater than 0 (received k={k_val}).")
             return
         chunks = load_or_build(
             Path("data/processed/chunks.pkl"),
-            lambda: Chunker(1600, "data/raw").chunks,
+            lambda: Chunker(1600, self.data_file).chunks,
         )
         index = load_or_build(
-            Path("data/processed/index.pkl"), lambda: Indexer(chunks)
+            Path("data/processed/index.pkl"),
+            lambda: Indexer(chunks, self.data_file),
         )
         scores = index.bm25(str(query), k_val)
         retrieved_chunks = [index.chunks[score] for score, _ in scores]
@@ -180,9 +175,11 @@ class RAG:
 
 if __name__ == "__main__":
     try:
-        fire.Fire(RAG)
+        fire.Fire(RAG("data/raw"))
+# 
     except KeyboardInterrupt:
         print("\nOperation cancelled by user.", flush=True)
-        sys.exit(130)
     except Exception as e:
         print(e)
+# 
+# 

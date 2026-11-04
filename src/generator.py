@@ -21,7 +21,7 @@ class LLM:
         self.tokenizer: Any = AutoTokenizer.from_pretrained("Qwen/Qwen3-0.6B")
 
     def prepare_prompt(self, query: str, context: list[MinimalSource]) -> str:
-        snippets: list[str] = []
+        chunks: list[str] = []
         for chunk in context:
             text = (
                 Path(chunk.file_path)
@@ -31,9 +31,9 @@ class LLM:
                 .strip()
             )
             if text:
-                snippets.append(text)
+                chunks.append(text)
 
-        context_str = "\n\n".join(snippets)
+        context_str = "\n\n".join(chunks)
         return f"Context:\n{context_str}\n\nQuestion: {query}"
 
     def answer_a_question(self, query: str) -> str:

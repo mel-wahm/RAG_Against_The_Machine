@@ -36,9 +36,11 @@ TEXT_STOPWORDS = {
 
 
 class Indexer:
-    def __init__(self, chunks: list[MinimalSource]) -> None:
+    def __init__(
+        self, chunks: list[MinimalSource], folder_path: str = "data/raw"
+    ) -> None:
         self.chunks = chunks
-        self.content = self.read_chunks("data/raw")
+        self.content = self.read_chunks(folder_path)
         self.chunks_length: list[int] = []
         self.index = self.indexing()
         self.chunks_average_length = sum(self.chunks_length) / len(self.chunks)
@@ -54,13 +56,18 @@ class Indexer:
             )
 
     def read_chunks(self, folder_path: str) -> dict[str, str]:
-        files = [
-            str(file)
-            for file in Path(folder_path).rglob("*")
-            if any(
-                str(file).endswith(prefix) for prefix in (".py", ".txt", ".md")
-            )
-        ]
+        path = Path(folder_path)
+        if path.is_file():
+            files = [str(path)]
+        else:
+            files = [
+                str(file)
+                for file in path.rglob("*")
+                if any(
+                    str(file).endswith(prefix)
+                    for prefix in (".py", ".txt", ".md")
+                )
+            ]
         content: dict[str, str] = {}
         for file in files:
             try:
@@ -69,6 +76,13 @@ class Indexer:
             except Exception:
                 continue
             content[file] = source
+        for chunk in self.chunks:
+            if chunk.file_path not in content:
+                try:
+                    with open(chunk.file_path) as f:
+                        content[chunk.file_path] = f.read()
+                except Exception:
+                    continue
         return content
 
     def split_camel(self, text: str) -> list[str]:
@@ -84,6 +98,10 @@ class Indexer:
 
     def bm25(self, query: str, top_k: int) -> list[tuple[int, float]]:
         scores: defaultdict = defaultdict(float)
+        if not self.tokenizer(query):
+            print("The query does not contain any meaninful "
+                  "tokens to work with.")
+            return []
         for token in self.tokenizer(query):
             if token not in self.index:
                 continue
