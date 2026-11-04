@@ -176,10 +176,8 @@ class RAG:
 if __name__ == "__main__":
     try:
         fire.Fire(RAG("data/raw"))
-# 
+
     except KeyboardInterrupt:
         print("\nOperation cancelled by user.", flush=True)
     except Exception as e:
         print(e)
-# 
-# 
