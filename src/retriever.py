@@ -1,8 +1,9 @@
 import json
+from pathlib import Path
+from tqdm import tqdm
 from src.models import StudentSearchResults, MinimalSearchResults
 from src.indexer import Indexer
-from tqdm import tqdm
-from pathlib import Path
+# from src.embedding import Embedder
 
 
 class Retriever:
@@ -12,6 +13,7 @@ class Retriever:
     def search_dataset(
         self, questions_file: str, save_directory: str, k: int
     ) -> None:
+        # self.emb = Embedder()
         path = Path(questions_file)
         if not path.is_file():
             print(f"Error: Questions file '{questions_file}' not found.")
@@ -44,8 +46,9 @@ class Retriever:
             chunks = []
             q_text = q.get("question", "") if isinstance(q, dict) else ""
             q_id = q.get("question_id", "") if isinstance(q, dict) else ""
-            top_scores = self.index.bm25(q_text, k) if k > 0 else []
-            for score in top_scores:
+
+            lex_top_scores = self.index.bm25(q_text, k)
+            for score in lex_top_scores:
                 chunks.append(self.index.chunks[score[0]])
             answer = MinimalSearchResults(
                 question_id=q_id, question=q_text, retrieved_sources=chunks

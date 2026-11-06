@@ -55,12 +55,15 @@ class Chunker:
         text_files = []
         path = Path(self.data_path)
         for file in path.rglob("*"):
-            if str(file).endswith(".py"):
-                python_files.append(str(file))
-            if str(file).endswith(".md"):
-                markdown_files.append(str(file))
-            if str(file).endswith(".txt"):
-                text_files.append(str(file))
+            try:
+                if str(file).endswith(".py"):
+                    python_files.append(str(file))
+                if str(file).endswith(".md"):
+                    markdown_files.append(str(file))
+                if str(file).endswith(".txt"):
+                    text_files.append(str(file))
+            except Exception:
+                continue
         return [python_files, markdown_files, text_files]
 
     def create_chunks(self) -> list[MinimalSource]:
@@ -215,9 +218,9 @@ class Chunker:
         class_buffer = Buffer(spans, self.max_size)
         function_buffer = Buffer(spans, self.max_size)
         modules_buffer = Buffer(spans, self.max_size)
-        with open(file_name) as f:
-            source = f.read()
         try:
+            with open(file_name) as f:
+                source = f.read()
             content = ast.parse(source)
         except (SyntaxError, UnicodeDecodeError):
             return []
