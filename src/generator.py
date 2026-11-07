@@ -9,21 +9,20 @@ from src.models import (
     MinimalAnswer,
 )
 
-
 class LLM:
     def __init__(self) -> None:
         import torch
         from transformers import AutoModelForCausalLM, AutoTokenizer
 
-        self.model: Any = AutoModelForCausalLM.from_pretrained(
+        self.model: AutoModelForCausalLM = AutoModelForCausalLM.from_pretrained(
             "Qwen/Qwen3-0.6B", dtype=torch.bfloat16
         )
-        self.tokenizer: Any = AutoTokenizer.from_pretrained("Qwen/Qwen3-0.6B")
+        self.tokenizer: AutoTokenizer = AutoTokenizer.from_pretrained("Qwen/Qwen3-0.6B")
 
     def prepare_prompt(self, query: str, context: list[MinimalSource]) -> str:
         chunks: list[str] = []
         for chunk in context:
-            text = (
+            text = chunk.file_path + "\n" + (
                 Path(chunk.file_path)
                 .read_text()[
                     chunk.first_character_index: chunk.last_character_index
@@ -33,7 +32,7 @@ class LLM:
             if text:
                 chunks.append(text)
 
-        context_str = "\n\n".join(chunks)
+        context_str = "\n\n---> ".join(chunks)
         return f"Context:\n{context_str}\n\nQuestion: {query}"
 
     def answer_a_question(self, query: str) -> str:
@@ -53,10 +52,9 @@ class LLM:
         )
         input_ids = self.tokenizer(message, return_tensors="pt")
         prompt_length = input_ids["input_ids"].shape[1]
-
         output_ids = self.model.generate(
-            input_ids["input_ids"], max_new_tokens=80
-        )
+            input_ids["input_ids"], max_new_tokens=180,
+                    )
 
         answer: str = self.tokenizer.decode(
             output_ids[0][prompt_length:], skip_special_tokens=True

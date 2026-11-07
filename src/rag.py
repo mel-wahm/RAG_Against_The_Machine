@@ -46,7 +46,7 @@ class RAG:
         if size <= 0:
             print("Error: max_chunk_size must be a positive integer.")
             return
-        if not 200 <= size <= 20000:
+        if not 200 <= size <= 2000:
             print("Error: max_chunk_size must be a between 200 and 2000.")
             return
         if not Path(self.data_file).exists():
@@ -89,14 +89,9 @@ class RAG:
             with open(index_path, "rb") as f:
                 index: Indexer = pickle.load(f)
             scores = index.bm25(str(query), k_val)
-            for score in scores:
-                chunk = index.chunks[score[0]]
-                print(
-                    f"{chunk.file_path}, "
-                    f"[{chunk.first_character_index}:"
-                    f"{chunk.last_character_index}] "
-                    f"score: {score[1]:.3f}"
-                )
+            for num in scores:
+                chunk = index.chunks[num]
+                print(chunk)
         except Exception as e:
             print(f"Error during search: {e}")
 
@@ -145,7 +140,7 @@ class RAG:
             lambda: Indexer(chunks, self.data_file),
         )
         scores = index.bm25(str(query), k_val)
-        retrieved_chunks = [index.chunks[score] for score, _ in scores]
+        retrieved_chunks = [index.chunks[score] for score in scores]
         try:
             model = LLM()
             full_prompt = model.prepare_prompt(str(query), retrieved_chunks)

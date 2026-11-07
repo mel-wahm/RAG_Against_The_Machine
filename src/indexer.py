@@ -116,7 +116,7 @@ class Indexer:
                 bast = tf * (k + 1)
                 maqam = tf + k * self.penalty[chunk]
                 scores[chunk] += idf * (bast / maqam) * multiplier
-        new_scores = nlargest(top_k, scores.items(), key=lambda elem: elem[1])
+        new_scores = nlargest(top_k, scores, key=lambda x: scores[x])
         return new_scores
 
     def tokenizer(self, text: str, file_name: str = "") -> list[str]:
