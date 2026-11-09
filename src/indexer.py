@@ -96,7 +96,7 @@ class Indexer:
         scores = log(1 + (n - nt + 0.5) / (nt + 0.5))
         return scores
 
-    def bm25(self, query: str, top_k: int) -> list[tuple[int, float]]:
+    def bm25(self, query: str, top_k: int) -> list[int]:
         scores: defaultdict = defaultdict(float)
         if not self.tokenizer(query):
             print("The query does not contain any meaninful "

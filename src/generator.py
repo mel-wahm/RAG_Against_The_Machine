@@ -1,7 +1,6 @@
 from rich import print
 import json
 from pathlib import Path
-from typing import Any
 from tqdm import tqdm
 from src.models import (
     MinimalSource,
@@ -10,15 +9,18 @@ from src.models import (
     MinimalAnswer,
 )
 
+
 class LLM:
     def __init__(self) -> None:
         import torch
         from transformers import AutoModelForCausalLM, AutoTokenizer
 
-        self.model: AutoModelForCausalLM = AutoModelForCausalLM.from_pretrained(
-            "Qwen/Qwen3-0.6B", dtype=torch.bfloat16
-        )
-        self.tokenizer: AutoTokenizer = AutoTokenizer.from_pretrained("Qwen/Qwen3-0.6B")
+        self.model: AutoModelForCausalLM = \
+            AutoModelForCausalLM.from_pretrained(
+                "Qwen/Qwen3-0.6B", dtype=torch.bfloat16
+            )
+        self.tokenizer: AutoTokenizer = \
+            AutoTokenizer.from_pretrained("Qwen/Qwen3-0.6B")
 
     def prepare_prompt(self, query: str, context: list[MinimalSource]) -> str:
         chunks: list[str] = []
@@ -61,13 +63,12 @@ class LLM:
             return_tensors="pt"
         )
         length = questions["input_ids"].shape[1]
-        # print(questions["input_ids"], length)
-        # exit()
         answers = self.model.generate(**questions, max_new_tokens=180)
         ret = []
         for answer in answers:
-            ret.append(self.tokenizer.decode(answer[length:], skip_special_tokens=True))
-            
+            ret.append(self.tokenizer.decode(answer[length:],
+                                             skip_special_tokens=True))
+
         return ret
 
     def answer_a_question(self, query: str) -> str:
@@ -128,8 +129,7 @@ class LLM:
 
         returns = []
         for idx in tqdm(range(0, len(search_results.search_results), 4),
-                        desc="Answering the dataset questions",
-        ):
+                        desc="Answering the dataset questions",):
             searches = search_results.search_results
             queries = []
             contexts = []
@@ -149,7 +149,6 @@ class LLM:
                         answer=answer,
                     )
                 )
-        # exit()
         final_result = StudentSearchResultsAndAnswer(
             search_results=returns, k=search_results.k
         )
@@ -162,4 +161,3 @@ class LLM:
                 f.write(final_result.model_dump_json(indent=4))
         except Exception as e:
             print(f"Error saving answers to '{save_directory}': {e}")
-# 

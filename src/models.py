@@ -12,10 +12,10 @@ class MinimalSource(BaseModel):
     first_character_index: int
     last_character_index: int
 
-    def __str__(self):
+    def __str__(self) -> str:
         return (f"{self.file_path}, "
-        f"[{self.first_character_index}:"
-        f"{self.last_character_index}] ")
+                f"[{self.first_character_index}:"
+                f"{self.last_character_index}] ")
 
 
 class UnansweredQuestion(BaseModel):

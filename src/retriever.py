@@ -10,15 +10,15 @@ class Retriever:
     def __init__(self, index: Indexer) -> None:
         self.index = index
 
-    def rrf(self, lex: list[int], emb: list[int]):
+    def rrf(self, lex: list[int],
+            emb: list[int]) -> list[int]:
         dic = {a: 0.0 for a in lex + emb}
         for s in dic:
             for score in (lex, emb):
                 if s in score:
                     mult = 1 if score == emb else 1.02
                     dic[s] += (1 / (60 + score.index(s))) * mult
-        return(sorted(dic, key=lambda x: dic[x], reverse=True)[:len(lex)])
-
+        return (sorted(dic, key=lambda x: dic[x], reverse=True)[:len(lex)])
 
     def search_dataset(
         self, questions_file: str, save_directory: str, k: int
