@@ -1,3 +1,5 @@
+import torch
+from typing import Any
 from rich import print
 import json
 from pathlib import Path
@@ -15,12 +17,14 @@ class LLM:
         import torch
         from transformers import AutoModelForCausalLM, AutoTokenizer
 
-        self.model: AutoModelForCausalLM = \
+        self.model: Any = \
             AutoModelForCausalLM.from_pretrained(
                 "Qwen/Qwen3-0.6B", dtype=torch.bfloat16
             )
-        self.tokenizer: AutoTokenizer = \
+        self.tokenizer: Any = \
             AutoTokenizer.from_pretrained("Qwen/Qwen3-0.6B")
+        self.tokenizer.padding_side = "left"
+        torch.set_num_threads(20)
 
     def prepare_prompt(self, query: str, context: list[MinimalSource]) -> str:
         chunks: list[str] = []
@@ -48,7 +52,6 @@ class LLM:
         )
         for mix in zip(batch, context):
             augm_batch.append(self.prepare_prompt(mix[0], mix[1]))
-        self.tokenizer.padding_side = "left"
         questions = self.tokenizer.apply_chat_template(
             [
                 [
@@ -63,7 +66,9 @@ class LLM:
             return_tensors="pt"
         )
         length = questions["input_ids"].shape[1]
-        answers = self.model.generate(**questions, max_new_tokens=180)
+        with torch.inference_mode():
+            answers = self.model.generate(**questions, max_new_tokens=60,
+                                          do_sample=False, num_beams=1)
         ret = []
         for answer in answers:
             ret.append(self.tokenizer.decode(answer[length:],
@@ -135,7 +140,7 @@ class LLM:
             contexts = []
             for search in searches[idx:idx + 4]:
                 queries.append(search.question)
-                contexts.append(search.retrieved_sources[:1])
+                contexts.append(search.retrieved_sources)
 
             answers = self.answer_batch(queries, contexts)
 

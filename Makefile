@@ -5,8 +5,8 @@ run:
 debug:
 	@uv run python -m pdb -m src
 lint:
-	@flake8 src
-	@mypy src --warn-return-any --warn-unused-ignores --ignore-missing-imports --disallow-untyped-defs --check-untyped-defs
+	@uv run flake8 src
+	@uv run mypy src --warn-return-any --warn-unused-ignores --ignore-missing-imports --disallow-untyped-defs --check-untyped-defs
 clean:
 	@pyclean .
 	@rm -rf .mypy_cache

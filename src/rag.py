@@ -1,3 +1,4 @@
+import numpy as np
 from typing import Callable, Any
 from pathlib import Path
 import pickle
@@ -6,6 +7,7 @@ from src.chunker import Chunker
 from src.indexer import Indexer
 from src.generator import LLM
 from src.evaluator import Evaluator
+from src.embedding import Embedder
 
 
 def load_or_build(path: Path, build: Callable) -> Any:
@@ -46,7 +48,7 @@ class RAG:
         if size <= 0:
             print("Error: max_chunk_size must be a positive integer.")
             return
-        if not 200 <= size <= 2000:
+        if not 200 <=    size <= 2000:
             print("Error: max_chunk_size must be a between 200 and 2000.")
             return
         if not Path(self.data_file).exists():
@@ -67,6 +69,15 @@ class RAG:
         with open(temp_index, "wb") as f:
             pickle.dump(index, f)
         temp_index.replace(index_path)
+
+        vector_path = Path("data/processed/vectors.npy")
+        embedder = Embedder()
+        index_vector = embedder.embedding()
+        temp_vectors = vector_path.with_suffix(".tmp")
+        with open(temp_vectors, "wb") as f:
+            np.save(f, index_vector)
+        temp_vectors.replace(vector_path)
+
 
     def search(self, query: str = "", k: int = 5) -> None:
         if not str(query).strip():

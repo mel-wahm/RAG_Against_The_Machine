@@ -15,8 +15,8 @@ if __name__ == "__main__":
     import fire
     from src.rag import RAG
 
-    # try:
-    if __name__ == "__main__":
-        fire.Fire(RAG("data/raw"))
-    # except Exception as e:
-    #     print(e)
+    try:
+        if __name__ == "__main__":
+            fire.Fire(RAG("data/raw"))
+    except Exception as e:
+        print(e)
