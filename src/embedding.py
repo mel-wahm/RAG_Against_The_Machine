@@ -42,3 +42,7 @@ class Embedder:
                 np.save(f, index_vector)
 
         return (index_vector)
+
+if __name__ == "__main__":
+    emb = Embedder()
+    emb.embedding()

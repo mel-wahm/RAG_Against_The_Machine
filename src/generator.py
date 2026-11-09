@@ -1,3 +1,4 @@
+from rich import print
 import json
 from pathlib import Path
 from typing import Any
@@ -34,6 +35,40 @@ class LLM:
 
         context_str = "\n\n---> ".join(chunks)
         return f"Context:\n{context_str}\n\nQuestion: {query}"
+
+    def answer_batch(self, batch: list[str],
+                     context: list[list[MinimalSource]]) -> list[str]:
+        augm_batch = []
+        system_instruction = (
+            "Answer the question directly and concisely in 1 to 2 "
+            "sentences using only the context. Do not repeat the "
+            "question or add code blocks unless requested."
+        )
+        for mix in zip(batch, context):
+            augm_batch.append(self.prepare_prompt(mix[0], mix[1]))
+        self.tokenizer.padding_side = "left"
+        questions = self.tokenizer.apply_chat_template(
+            [
+                [
+                    {"role": "system", "content": system_instruction},
+                    {"role": "user", "content": prompt},
+                ] for prompt in augm_batch
+            ],
+            padding=True,
+            tokenize=True,
+            add_generation_prompt=True,
+            enable_thinking=False,
+            return_tensors="pt"
+        )
+        length = questions["input_ids"].shape[1]
+        # print(questions["input_ids"], length)
+        # exit()
+        answers = self.model.generate(**questions, max_new_tokens=180)
+        ret = []
+        for answer in answers:
+            ret.append(self.tokenizer.decode(answer[length:], skip_special_tokens=True))
+            
+        return ret
 
     def answer_a_question(self, query: str) -> str:
         system_instruction = (
@@ -91,25 +126,32 @@ class LLM:
             print(f"Error: Invalid student search results format: {e}")
             return
 
-        answers = []
-        for search in tqdm(
-            search_results.search_results,
-            desc="Answering the dataset questions",
+        returns = []
+        for idx in tqdm(range(0, len(search_results.search_results), 4),
+                        desc="Answering the dataset questions",
         ):
-            query = search.question
-            context = search.retrieved_sources
-            prompt = self.prepare_prompt(query, context[:1])
-            answer = self.answer_a_question(prompt)
-            answers.append(
-                MinimalAnswer(
-                    question_id=search.question_id,
-                    question=search.question,
-                    retrieved_sources=context,
-                    answer=answer,
+            searches = search_results.search_results
+            queries = []
+            contexts = []
+            for search in searches[idx:idx + 4]:
+                queries.append(search.question)
+                contexts.append(search.retrieved_sources[:1])
+
+            answers = self.answer_batch(queries, contexts)
+
+            for n, search in enumerate(searches[idx:idx + 4]):
+                answer = answers[n]
+                returns.append(
+                    MinimalAnswer(
+                        question_id=search.question_id,
+                        question=search.question,
+                        retrieved_sources=search.retrieved_sources,
+                        answer=answer,
+                    )
                 )
-            )
+        # exit()
         final_result = StudentSearchResultsAndAnswer(
-            search_results=answers, k=search_results.k
+            search_results=returns, k=search_results.k
         )
         path_name = path.name
         save_dir = Path(save_directory)
@@ -120,3 +162,4 @@ class LLM:
                 f.write(final_result.model_dump_json(indent=4))
         except Exception as e:
             print(f"Error saving answers to '{save_directory}': {e}")
+# 

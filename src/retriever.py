@@ -13,10 +13,12 @@ class Retriever:
     def rrf(self, lex: list[int], emb: list[int]):
         dic = {a: 0.0 for a in lex + emb}
         for s in dic:
-            for scores in (lex, emb):
-                if s in scores:
-                    dic[s] += 1 / (60 + scores.index(s))
-        print(dic)
+            for score in (lex, emb):
+                if s in score:
+                    mult = 1 if score == emb else 1.02
+                    dic[s] += (1 / (60 + score.index(s))) * mult
+        return(sorted(dic, key=lambda x: dic[x], reverse=True)[:len(lex)])
+
 
     def search_dataset(
         self, questions_file: str, save_directory: str, k: int
@@ -45,7 +47,12 @@ class Retriever:
 
         rag_questions = questions["rag_questions"]
         answers = []
-        for q in rag_questions:
+        for q in tqdm(
+            rag_questions,
+            desc="Answering the questions",
+            colour="#21ac77",
+            ascii="  ▓▒░░",
+        ):
             chunks = []
             q_text = q.get("question", "") if isinstance(q, dict) else ""
             q_id = q.get("question_id", "") if isinstance(q, dict) else ""
@@ -53,8 +60,6 @@ class Retriever:
             lex_top_scores = self.index.bm25(q_text, k)
             emb_scores = self.emb.search(q_text, k)
             top_scores = self.rrf(lex_top_scores, emb_scores)
-            # print(lex_top_scores, emb_scores)
-            exit()
 
             for chunk in top_scores:
                 chunks.append(self.index.chunks[chunk])

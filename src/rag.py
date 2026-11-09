@@ -154,10 +154,10 @@ class RAG:
         if not Path(student_search_results_path).is_file():
             print(f"Error: File '{student_search_results_path}' not found.")
             return
-        try:
-            LLM().answer_dataset(student_search_results_path, save_directory)
-        except Exception as e:
-            print(f"Error during answer_dataset: {e}")
+        # try:
+        LLM().answer_dataset(student_search_results_path, save_directory)
+        # except Exception as e:
+        #     print(f"Error during answer_dataset: {e}")
 
     def evaluate(
         self, student_search_results_path: str, dataset_path: str
