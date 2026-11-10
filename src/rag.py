@@ -1,4 +1,3 @@
-import numpy as np
 from typing import Callable, Any
 from pathlib import Path
 import pickle
@@ -39,7 +38,7 @@ class RAG:
     def __init__(self, data_file: str = "data/raw") -> None:
         self.data_file = data_file
 
-    def index(self, max_chunk_size: int = 1600) -> None:
+    def index(self, max_chunk_size: int = 2000) -> None:
         try:
             size = int(max_chunk_size)
         except (ValueError, TypeError):
@@ -48,14 +47,14 @@ class RAG:
         if size <= 0:
             print("Error: max_chunk_size must be a positive integer.")
             return
-        if not 200 <=    size <= 2000:
-            print("Error: max_chunk_size must be a between 200 and 2000.")
+        if not 400 <= size <= 2000:
+            print("Error: max_chunk_size must be a between 400 and 2000.")
             return
         if not Path(self.data_file).exists():
             print(f"Error: Raw data directory '{self.data_file}' not found.")
             return
         Path("data/processed").mkdir(parents=True, exist_ok=True)
-        # try:
+
         chunks_path = Path("data/processed/chunks.pkl")
         chunks = Chunker(size, self.data_file).chunks
         temp_chunks = chunks_path.with_suffix(".tmp")
@@ -70,14 +69,7 @@ class RAG:
             pickle.dump(index, f)
         temp_index.replace(index_path)
 
-        vector_path = Path("data/processed/vectors.npy")
-        embedder = Embedder()
-        index_vector = embedder.embedding()
-        temp_vectors = vector_path.with_suffix(".tmp")
-        with open(temp_vectors, "wb") as f:
-            np.save(f, index_vector)
-        temp_vectors.replace(vector_path)
-
+        Embedder()
 
     def search(self, query: str = "", k: int = 5) -> None:
         if not str(query).strip():
@@ -89,19 +81,17 @@ class RAG:
             return
         if k_val <= 0:
             return
-        index_path = Path("data/processed/index.pkl")
-        if not index_path.exists():
-            print(
-                "Error: Index not found. Please run 'uv run python -m "
-                "src index --max_chunk_size=<int>' first."
-            )
-            return
+        chunks = load_or_build(
+            Path("data/processed/chunks.pkl"),
+            lambda: Chunker(2000, self.data_file).chunks,
+        )
+        index = load_or_build(
+            Path("data/processed/index.pkl"),
+            lambda: Indexer(chunks, self.data_file),
+        )
         try:
-            with open(index_path, "rb") as f:
-                index: Indexer = pickle.load(f)
-            scores = index.bm25(str(query), k_val)
-            for num in scores:
-                chunk = index.chunks[num]
+            retrieved = Retriever(index).search_query(str(query), k_val)
+            for chunk in retrieved:
                 print(chunk)
         except Exception as e:
             print(f"Error during search: {e}")
@@ -122,7 +112,7 @@ class RAG:
             return
         chunks = load_or_build(
             Path("data/processed/chunks.pkl"),
-            lambda: Chunker(1600, self.data_file).chunks,
+            lambda: Chunker(2000, self.data_file).chunks,
         )
         index = load_or_build(
             Path("data/processed/index.pkl"),
@@ -144,15 +134,15 @@ class RAG:
             return
         chunks = load_or_build(
             Path("data/processed/chunks.pkl"),
-            lambda: Chunker(1600, self.data_file).chunks,
+            lambda: Chunker(2000, self.data_file).chunks,
         )
         index = load_or_build(
             Path("data/processed/index.pkl"),
             lambda: Indexer(chunks, self.data_file),
         )
-        scores = index.bm25(str(query), k_val)
-        retrieved_chunks = [index.chunks[score] for score in scores]
         try:
+            retriever = Retriever(index)
+            retrieved_chunks = retriever.search_query(str(query), k_val)
             model = LLM()
             full_prompt = model.prepare_prompt(str(query), retrieved_chunks)
             print(model.answer_a_question(full_prompt))
@@ -165,10 +155,10 @@ class RAG:
         if not Path(student_search_results_path).is_file():
             print(f"Error: File '{student_search_results_path}' not found.")
             return
-        # try:
-        LLM().answer_dataset(student_search_results_path, save_directory)
-        # except Exception as e:
-        #     print(f"Error during answer_dataset: {e}")
+        try:
+            LLM().answer_dataset(student_search_results_path, save_directory)
+        except Exception as e:
+            print(f"Error during answer_dataset: {e}")
 
     def evaluate(
         self, student_search_results_path: str, dataset_path: str

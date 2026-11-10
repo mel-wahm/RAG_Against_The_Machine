@@ -3,20 +3,20 @@ import sys
 from types import FrameType
 
 
-def interrupt_hundler(singal_num: int,
+def interrupt_handler(signal_num: int,
                       frame: FrameType | None) -> None:
     print("\n\nOperation was stopped by the user")
     sys.exit(130)
 
 
-signal.signal(signal.SIGINT, interrupt_hundler)
+signal.signal(signal.SIGINT, interrupt_handler)
 
 if __name__ == "__main__":
-    import fire
-    from src.rag import RAG
-
     try:
-        if __name__ == "__main__":
-            fire.Fire(RAG("data/raw"))
+        import fire
+        from src.rag import RAG
+        fire.Fire(RAG("data/raw"))
+    except ModuleNotFoundError as e:
+        print(e)
     except Exception as e:
         print(e)
