@@ -15,7 +15,7 @@ if __name__ == "__main__":
     try:
         import fire
         from src.rag import RAG
-        fire.Fire(RAG("data/raw"))
+        fire.Fire(RAG("empty"))
     except ModuleNotFoundError as e:
         print(e)
     except Exception as e:

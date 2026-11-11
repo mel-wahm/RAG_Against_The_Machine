@@ -49,6 +49,18 @@ class Chunker:
         )
         self.chunks = self.create_chunks()
 
+
+    def validate_files(self, files: list[list[str]]) -> bool:
+        for fol in files:
+            for f in fol:
+                try:
+                    print(Path(f).read_text().strip())
+                    if len(Path(f).read_text().strip()):
+                        return True
+                except Exception as e:
+                    continue
+        return False
+
     def load_files(self) -> list[list[str]]:
         python_files = []
         markdown_files = []
@@ -64,7 +76,11 @@ class Chunker:
                     text_files.append(str(file))
             except Exception:
                 continue
-        return [python_files, markdown_files, text_files]
+        files = [python_files, markdown_files, text_files]
+        if not self.validate_files(files):
+            raise ValueError("Files validation not successful"
+                             " (no files, or empty files)")
+        return files
 
     def create_chunks(self) -> list[MinimalSource]:
         chunks: list[MinimalSource] = []

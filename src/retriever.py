@@ -15,7 +15,7 @@ from src.embedding import Embedder
 class Retriever:
     def __init__(self, index: Indexer) -> None:
         self.index = index
-        self.emb = Embedder()
+        self.emb = Embedder(index)  
 
     def rrf(self, lex: list[int],
             emb: list[int], k: int) -> list[int]:

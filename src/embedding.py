@@ -3,18 +3,23 @@ import torch
 import pickle
 import numpy as np
 from src.indexer import Indexer
+from src.utils import load_or_build
 
 
 class Embedder:
-    def __init__(self) -> None:
+    def __init__(self, index: Indexer | None = None) -> None:
         from sentence_transformers import SentenceTransformer
         self.model = SentenceTransformer("all-MiniLM-L6-v2")
         torch.set_num_threads(8)
-        with open("data/processed/index.pkl", "rb") as f:
-            self.index: Indexer = pickle.load(f)
-        from src.rag import load_or_build
-        self.index_vector = load_or_build(Path("data/processed/vectors.pkl"),
-                                          lambda: self.embedding())
+        if index is not None:
+            self.index = index
+        else:
+            with open("data/processed/index.pkl", "rb") as f:
+                self.index = pickle.load(f)
+        self.index_vector = load_or_build(
+            Path("data/processed/vectors.pkl"),
+            lambda: self.embedding(),
+        )
 
     def search(self, query: str, k: int) -> list[int]:
         query_emb = self.model.encode(query, normalize_embeddings=True)
