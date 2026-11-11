@@ -3,7 +3,7 @@ import torch
 import pickle
 import numpy as np
 from src.indexer import Indexer
-from src.utils import load_or_build
+from src.utils import load_or_build, save_atomic
 
 
 class Embedder:
@@ -16,12 +16,22 @@ class Embedder:
         else:
             with open("data/processed/index.pkl", "rb") as f:
                 self.index = pickle.load(f)
-        self.index_vector = load_or_build(
-            Path("data/processed/vectors.pkl"),
-            lambda: self.embedding(),
-        )
+        self.index_vector: np.ndarray | None = None
 
     def search(self, query: str, k: int) -> list[int]:
+        if (
+            self.index_vector is None
+            or len(self.index_vector) != len(self.index.chunks)
+        ):
+            self.index_vector = load_or_build(
+                Path("data/processed/vectors.pkl"),
+                lambda: self.embedding(),
+            )
+            if len(self.index_vector) != len(self.index.chunks):
+                self.index_vector = self.embedding()
+                save_atomic(
+                    Path("data/processed/vectors.pkl"), self.index_vector
+                )
         query_emb = self.model.encode(query, normalize_embeddings=True)
         scores = self.index_vector @ query_emb
         top_k: list[int] = np.argsort(-scores)[:k].tolist()

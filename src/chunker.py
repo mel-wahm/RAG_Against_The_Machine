@@ -49,15 +49,13 @@ class Chunker:
         )
         self.chunks = self.create_chunks()
 
-
     def validate_files(self, files: list[list[str]]) -> bool:
         for fol in files:
             for f in fol:
                 try:
-                    print(Path(f).read_text().strip())
                     if len(Path(f).read_text().strip()):
                         return True
-                except Exception as e:
+                except Exception:
                     continue
         return False
 
@@ -143,7 +141,9 @@ class Chunker:
             0
         ]
         member_buffer = Buffer(spans, self.max_size)
-        assert hasattr(class_node, "body")
+        # Guard against nodes lacking a body attribute
+        if not hasattr(class_node, "body"):
+            return
         for node in class_node.body:
             start = (
                 self.get_offsets(node, files_offsets)[0]
@@ -238,7 +238,8 @@ class Chunker:
             with open(file_name) as f:
                 source = f.read()
             content = ast.parse(source)
-        except (SyntaxError, UnicodeDecodeError):
+        # Catch any file I/O, encoding, or AST syntax errors safely
+        except Exception:
             return []
 
         def flush_all_expect(active_buffer: Buffer | None = None) -> None:

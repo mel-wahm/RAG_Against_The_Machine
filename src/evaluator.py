@@ -42,8 +42,9 @@ class Evaluator:
     ) -> float:
         recall = 0.0
         for answer in student_answers:
+            # Skip answers for question IDs not in dataset rather than crashing
             if answer.question_id not in ids:
-                raise KeyError(f"{answer.question_id}")
+                continue
             truth = ids[answer.question_id]
             if not hasattr(truth, "sources"):
                 continue
@@ -137,11 +138,13 @@ class Evaluator:
             return
 
         for a in user_answers:
+            # Report missing question IDs cleanly without an exception
             if a.question_id not in ids:
-                raise ValueError(
-                    f'ERROR: question with id: "{a.question_id}" not found '
-                    "in dataset"
+                print(
+                    f'Error: Question with id "{a.question_id}" not found '
+                    "in dataset."
                 )
+                return
 
         for r in recall:
             recall[r] = self.calculate_recall(r, user_answers, ids)

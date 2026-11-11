@@ -43,7 +43,12 @@ class Indexer:
         self.content = self.read_chunks(folder_path)
         self.chunks_length: list[int] = []
         self.index = self.indexing()
-        self.chunks_average_length = sum(self.chunks_length) / len(self.chunks)
+        # Guard against division by zero when chunks list is empty
+        self.chunks_average_length = (
+            sum(self.chunks_length) / len(self.chunks)
+            if self.chunks
+            else 0.0
+        )
         self.penalty = []
         for num, length in enumerate(self.chunks_length):
             chunk_type = self.chunks[num].file_path.endswith(".py")
@@ -51,9 +56,13 @@ class Indexer:
                 b = code_b
             else:
                 b = docs_b
-            self.penalty.append(
-                1 - b + b * (length / self.chunks_average_length)
+            # Guard against division by zero if average chunk length is 0
+            ratio = (
+                length / self.chunks_average_length
+                if self.chunks_average_length > 0
+                else 0.0
             )
+            self.penalty.append(1 - b + b * ratio)
 
     def read_chunks(self, folder_path: str) -> dict[str, str]:
         path = Path(folder_path)
@@ -71,18 +80,10 @@ class Indexer:
         content: dict[str, str] = {}
         for file in files:
             try:
-                with open(file) as f:
-                    source = f.read()
+                source = Path(file).read_text()
             except Exception:
                 continue
             content[file] = source
-        for chunk in self.chunks:
-            if chunk.file_path not in content:
-                try:
-                    with open(chunk.file_path) as f:
-                        content[chunk.file_path] = f.read()
-                except Exception:
-                    continue
         return content
 
     def split_camel(self, text: str) -> list[str]:
@@ -98,11 +99,12 @@ class Indexer:
 
     def bm25(self, query: str, top_k: int) -> list[int]:
         scores: defaultdict = defaultdict(float)
-        if not self.tokenizer(query):
-            print("The query does not contain any meaninful "
+        query_token = self.tokenizer(query)
+        if not query_token:
+            print("The query does not contain any meaningful "
                   "tokens to work with.")
             return []
-        for token in self.tokenizer(query):
+        for token in query_token:
             if token not in self.index:
                 continue
             multiplier = 3 if "_" in token else 1
@@ -141,9 +143,11 @@ class Indexer:
             new.extend(res)
             if "_" in token:
                 new.extend(map(lambda x: x.lower(), token.split("_")))
-        return list(map(lambda x: x.lower(), result)) + [
+        final_res = [x.lower() for x in result] + [
             piece for piece in new if len(piece) > 1 and piece not in stopwords
+            and piece not in result
         ]
+        return final_res
 
     def indexing(self) -> dict[str, dict[int, int]]:
         index: dict[str, dict[int, int]] = {}

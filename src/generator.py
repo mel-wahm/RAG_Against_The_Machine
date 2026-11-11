@@ -35,15 +35,19 @@ class LLM:
     def prepare_prompt(self, query: str, context: list[MinimalSource]) -> str:
         chunks: list[str] = []
         for chunk in context:
-            text = chunk.file_path + "\n" + (
-                Path(chunk.file_path)
-                .read_text()[
-                    chunk.first_character_index: chunk.last_character_index
-                ]
-                .strip()
-            )
-            if text:
-                chunks.append(text)
+            # Safely read chunk content; skip missing or inaccessible files
+            try:
+                raw_text = Path(chunk.file_path).read_text()
+                text = chunk.file_path + "\n" + (
+                    raw_text[
+                        chunk.first_character_index: chunk.last_character_index
+                    ]
+                    .strip()
+                )
+                if text:
+                    chunks.append(text)
+            except Exception:
+                continue
 
         context_str = "\n\n---> ".join(chunks)
         return f"Context:\n{context_str}\n\nQuestion: {query}"

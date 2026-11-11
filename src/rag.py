@@ -39,13 +39,20 @@ class RAG:
             print(f"Error: Raw data directory '{self.data_file}' not found.")
             return
 
-        chunks = Chunker(size, self.data_file).chunks
-        save_atomic(Path("data/processed/chunks.pkl"), chunks)
+        # Catch build and validation errors gracefully to prevent CLI crashes
+        try:
+            chunks = Chunker(size, self.data_file).chunks
+            save_atomic(Path("data/processed/chunks.pkl"), chunks)
 
-        index = Indexer(chunks, self.data_file)
-        save_atomic(Path("data/processed/index.pkl"), index)
+            index = Indexer(chunks, self.data_file)
+            save_atomic(Path("data/processed/index.pkl"), index)
 
-        Embedder(index)
+            embedder = Embedder(index)
+            index_vector = embedder.embedding()
+            save_atomic(Path("data/processed/vectors.pkl"), index_vector)
+        except Exception as e:
+            print(f"Error during indexing: {e}")
+            return
 
     def search(self, query: str = "", k: int = 5) -> None:
         if not str(query).strip():
@@ -102,4 +109,8 @@ class RAG:
     def evaluate(
         self, student_search_results_path: str, dataset_path: str
     ) -> None:
-        Evaluator(student_search_results_path, dataset_path).evaluate()
+        # Catch evaluation errors gracefully without crashing the CLI
+        try:
+            Evaluator(student_search_results_path, dataset_path).evaluate()
+        except Exception as e:
+            print(f"Error during evaluation: {e}")
