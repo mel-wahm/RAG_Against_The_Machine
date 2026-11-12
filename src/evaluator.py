@@ -42,9 +42,6 @@ class Evaluator:
     ) -> float:
         recall = 0.0
         for answer in student_answers:
-            # Skip answers for question IDs not in dataset rather than crashing
-            if answer.question_id not in ids:
-                continue
             truth = ids[answer.question_id]
             if not hasattr(truth, "sources"):
                 continue
@@ -67,7 +64,8 @@ class Evaluator:
         sr_path = Path(self.student_search_results_path)
 
         if not ds_path.is_file():
-            print(f"Error: Dataset file '{self.dataset_path}' not found.")
+            print(f"Error: Dataset file '{self.dataset_path}' "
+                  "not found.")
             return
         if not sr_path.is_file():
             print(
@@ -80,10 +78,8 @@ class Evaluator:
             with open(ds_path) as f:
                 dataset = json.load(f)
         except json.JSONDecodeError:
-            print(
-                f"Error: Dataset file '{self.dataset_path}' "
-                "contains invalid JSON."
-            )
+            print(f"Error: Dataset file '{self.dataset_path}' "
+                  "contains invalid JSON.")
             return
         except Exception as e:
             print(f"Error reading dataset file: {e}")
@@ -141,8 +137,8 @@ class Evaluator:
             # Report missing question IDs cleanly without an exception
             if a.question_id not in ids:
                 print(
-                    f'Error: Question with id "{a.question_id}" not found '
-                    "in dataset."
+                    f'Error: Question with id "{a.question_id}" '
+                    'not found in dataset.'
                 )
                 return
 
