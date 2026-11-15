@@ -12,26 +12,143 @@ docs_k = 1.8
 docs_b = 0.65
 
 PUNCTUATION = {
-    '!', '"', '#', '$', '%', '&', "'", '(', ')', '*', '+', ',', '-',
-    '.', '/', ':', ';', '<', '=', '>', '?', '@', '[', '\\', ']', '^',
-    '`', '{', '|', '}', '~'
+    "!",
+    '"',
+    "#",
+    "$",
+    "%",
+    "&",
+    "'",
+    "(",
+    ")",
+    "*",
+    "+",
+    ",",
+    "-",
+    ".",
+    "/",
+    ":",
+    ";",
+    "<",
+    "=",
+    ">",
+    "?",
+    "@",
+    "[",
+    "\\",
+    "]",
+    "^",
+    "`",
+    "{",
+    "|",
+    "}",
+    "~",
 }
 
 PYTHON_STOPWORDS = {
-    "self", "cls", "in", "can", "where", "does", "for", "from", "as", "if",
-    "while", "is", "not", "and", "or"
+    "self",
+    "cls",
+    "in",
+    "can",
+    "where",
+    "does",
+    "for",
+    "from",
+    "as",
+    "if",
+    "while",
+    "is",
+    "not",
+    "and",
+    "or",
 }
 
 TEXT_STOPWORDS = {
-    "a", "an", "the", "and", "or", "but", "nor", "am", "is", "are", "was",
-    "were", "be", "been", "being", "do", "does", "did", "have", "has", "had",
-    "i", "me", "my", "we", "our", "you", "your", "he", "she", "it", "they",
-    "them", "this", "that", "these", "those", "of", "at", "by", "for", "from",
-    "in", "into", "on", "onto", "to", "with", "without", "as", "if", "then",
-    "than", "because", "while", "when", "where", "can", "could", "may",
-    "might", "must", "shall", "should", "will", "would", "not", "no", "so",
-    "very", "just", "also", "only", "each", "what", "how", "which", "where",
-    "who", "why", "whose", "whom", "all", "any", "some"
+    "a",
+    "an",
+    "the",
+    "and",
+    "or",
+    "but",
+    "nor",
+    "am",
+    "is",
+    "are",
+    "was",
+    "were",
+    "be",
+    "been",
+    "being",
+    "do",
+    "does",
+    "did",
+    "have",
+    "has",
+    "had",
+    "i",
+    "me",
+    "my",
+    "we",
+    "our",
+    "you",
+    "your",
+    "he",
+    "she",
+    "it",
+    "they",
+    "them",
+    "this",
+    "that",
+    "these",
+    "those",
+    "of",
+    "at",
+    "by",
+    "for",
+    "from",
+    "in",
+    "into",
+    "on",
+    "onto",
+    "to",
+    "with",
+    "without",
+    "as",
+    "if",
+    "then",
+    "than",
+    "because",
+    "while",
+    "when",
+    "where",
+    "can",
+    "could",
+    "may",
+    "might",
+    "must",
+    "shall",
+    "should",
+    "will",
+    "would",
+    "not",
+    "no",
+    "so",
+    "very",
+    "just",
+    "also",
+    "only",
+    "each",
+    "what",
+    "how",
+    "which",
+    "where",
+    "who",
+    "why",
+    "whose",
+    "whom",
+    "all",
+    "any",
+    "some",
 }
 
 
@@ -43,11 +160,8 @@ class Indexer:
         self.content = self.read_chunks(folder_path)
         self.chunks_length: list[int] = []
         self.index = self.indexing()
-        # Guard against division by zero when chunks list is empty
         self.chunks_average_length = (
-            sum(self.chunks_length) / len(self.chunks)
-            if self.chunks
-            else 0.0
+            sum(self.chunks_length) / len(self.chunks) if self.chunks else 0.0
         )
         self.penalty = []
         for num, length in enumerate(self.chunks_length):
@@ -56,7 +170,6 @@ class Indexer:
                 b = code_b
             else:
                 b = docs_b
-            # Guard against division by zero if average chunk length is 0
             ratio = (
                 length / self.chunks_average_length
                 if self.chunks_average_length > 0
@@ -101,8 +214,10 @@ class Indexer:
         scores: defaultdict = defaultdict(float)
         query_token = self.tokenizer(query)
         if not query_token:
-            print("The query does not contain any meaningful "
-                  "tokens to work with.")
+            print(
+                "The query does not contain any meaningful "
+                "tokens to work with."
+            )
             return []
         for token in query_token:
             if token not in self.index:
@@ -115,8 +230,8 @@ class Indexer:
                     k = code_k
                 else:
                     k = docs_k
-                bast = tf * (k + 1)
-                maqam = tf + k * self.penalty[chunk]
+                bast = k + 1
+                maqam = 1 + (k * self.penalty[chunk] / tf)
                 scores[chunk] += idf * (bast / maqam) * multiplier
         new_scores = nlargest(top_k, scores, key=lambda x: scores[x])
         return new_scores
@@ -144,7 +259,10 @@ class Indexer:
             if "_" in token:
                 new.extend(map(lambda x: x.lower(), token.split("_")))
         final_res = [x.lower() for x in result] + [
-            piece for piece in new if len(piece) > 1 and piece not in stopwords
+            piece
+            for piece in new
+            if len(piece) > 1
+            and piece not in stopwords
             and piece not in result
         ]
         return final_res
@@ -160,7 +278,7 @@ class Indexer:
             )
         ):
             chunk_text = self.content[chunk.file_path][
-                chunk.first_character_index:chunk.last_character_index
+                chunk.first_character_index: chunk.last_character_index
             ]
             tokens = (
                 self.tokenizer(chunk_text, chunk.file_path)

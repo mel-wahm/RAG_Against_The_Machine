@@ -1,16 +1,14 @@
 from pathlib import Path
-import torch
 import pickle
 import numpy as np
 from src.indexer import Indexer
-from src.utils import load_or_build, save_atomic
+from src.utils import load_or_build, save_pickle
 
 
 class Embedder:
     def __init__(self, index: Indexer | None = None) -> None:
         from sentence_transformers import SentenceTransformer
         self.model = SentenceTransformer("all-MiniLM-L6-v2")
-        torch.set_num_threads(8)
         if index is not None:
             self.index = index
         else:
@@ -29,7 +27,7 @@ class Embedder:
             )
             if len(self.index_vector) != len(self.index.chunks):
                 self.index_vector = self.embedding()
-                save_atomic(
+                save_pickle(
                     Path("data/processed/vectors.pkl"), self.index_vector
                 )
         query_emb = self.model.encode(query, normalize_embeddings=True)

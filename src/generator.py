@@ -1,4 +1,3 @@
-import torch
 from typing import Any
 from rich import print
 import json
@@ -25,17 +24,15 @@ class LLM:
 
         self.model: Any = \
             AutoModelForCausalLM.from_pretrained(
-                "Qwen/Qwen3-0.6B", dtype=torch.bfloat16
+                "Qwen/Qwen3-0.6B"
             )
         self.tokenizer: Any = \
             AutoTokenizer.from_pretrained("Qwen/Qwen3-0.6B")
         self.tokenizer.padding_side = "left"
-        torch.set_num_threads(20)
 
     def prepare_prompt(self, query: str, context: list[MinimalSource]) -> str:
         chunks: list[str] = []
         for chunk in context:
-            # Safely read chunk content; skip missing or inaccessible files
             try:
                 raw_text = Path(chunk.file_path).read_text()
                 text = chunk.file_path + "\n" + (
@@ -71,9 +68,8 @@ class LLM:
             return_tensors="pt"
         )
         length = questions["input_ids"].shape[1]
-        with torch.inference_mode():
-            answers = self.model.generate(**questions, max_new_tokens=60,
-                                          do_sample=False, num_beams=1)
+        answers = self.model.generate(**questions, max_new_tokens=60,
+                                      do_sample=False, num_beams=1)
         ret = []
         for answer in answers:
             ret.append(self.tokenizer.decode(answer[length:],

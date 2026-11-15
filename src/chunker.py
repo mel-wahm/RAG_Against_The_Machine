@@ -22,15 +22,22 @@ class Buffer:
         size, we commit the buffer and create a new one"""
         start, end = chunk
         if self.start is None:
+            # nothing is saved yet, we start a new chunk
             self.start, self.end = start, end
         elif end - self.start <= self.max_chunk_size:
+            # there is space to add the chunk
             self.end = end
         else:
+            # there is no space to add the chunk
+            # we save the first buffer and create the new one
             self.flush()
             self.start, self.end = start, end
 
     def flush(self) -> None:
         if self.start is not None and self.end is not None:
+            # this check makes the function call safe for repetetive calls
+            # best when we flush all buffers without checking
+            # if they are full or not
             self.chunks.append((self.start, self.end))
         self.start, self.end = None, None
 
@@ -50,6 +57,7 @@ class Chunker:
         self.chunks = self.create_chunks()
 
     def validate_files(self, files: list[list[str]]) -> bool:
+        # checks if there is at least one file with content in it
         for fol in files:
             for f in fol:
                 try:
@@ -57,6 +65,7 @@ class Chunker:
                         return True
                 except Exception:
                     continue
+        # returns false when all files are empty
         return False
 
     def load_files(self) -> list[list[str]]:
@@ -65,15 +74,13 @@ class Chunker:
         text_files = []
         path = Path(self.data_path)
         for file in path.rglob("*"):
-            try:
-                if str(file).endswith(".py"):
-                    python_files.append(str(file))
-                if str(file).endswith(".md"):
-                    markdown_files.append(str(file))
-                if str(file).endswith(".txt"):
-                    text_files.append(str(file))
-            except Exception:
-                continue
+            # loops through the files and categorizes the ones we find relevant
+            if file.suffix == ".py":
+                python_files.append(str(file))
+            if file.suffix == ".md":
+                markdown_files.append(str(file))
+            if file.suffix == ".txt":
+                text_files.append(str(file))
         files = [python_files, markdown_files, text_files]
         if not self.validate_files(files):
             raise ValueError("Files validation not successful"
@@ -81,6 +88,8 @@ class Chunker:
         return files
 
     def create_chunks(self) -> list[MinimalSource]:
+        # this calls three different functions
+        # each one splits text depending of its format
         chunks: list[MinimalSource] = []
         for file in tqdm(
             self.python_files,
@@ -117,14 +126,20 @@ class Chunker:
         """
 
         if node.end_col_offset is None or node.end_lineno is None:
+            # this is mainly to protect against mypy because end_col_offset
+            # might return None, even though it doesnt happen normally
+            # when a python code is parsed but only when a node built manually
             return (0, 0)
 
         if hasattr(node, "decorator_list") and node.decorator_list:
+            # if the node has decorators, we start the chunks from them
             start_line = node.decorator_list[0].lineno
             start_line_offs = node.decorator_list[0].col_offset
         else:
             start_line = node.lineno
             start_line_offs = node.col_offset
+        # start and end line is offset of line in the files_offset
+        # + the offset of the column
         start_off = files_offsets[start_line - 1] + start_line_offs
         end_off = files_offsets[node.end_lineno - 1] + node.end_col_offset
         return (start_off, end_off)
@@ -141,32 +156,36 @@ class Chunker:
             0
         ]
         member_buffer = Buffer(spans, self.max_size)
-        # Guard against nodes lacking a body attribute
+        # Guard against nodes lacking a body attribute (mypy)
         if not hasattr(class_node, "body"):
             return
         for node in class_node.body:
+            # looping through all the members of class (funcions, imports...)
+
+            # here we choose where we start the chunk from
+            # if its the first node we start from the name of the class and
+            # its docstring, else we start from the start of the member
             start = (
                 self.get_offsets(node, files_offsets)[0]
                 if chunk_start is None
                 else chunk_start
             )
+            # once we add the class name and docstring we set it to None
             chunk_start = None
             end = self.get_offsets(node, files_offsets)[1]
             if end - start > self.max_size:
-                if member_buffer.start is not None:
-                    member_buffer.flush()
+                member_buffer.flush()
                 self.chunk_by_lines(start, end, spans, source)
-
             else:
                 member_buffer.add((start, end))
-        if member_buffer.start is not None:
-            member_buffer.flush()
+        member_buffer.flush()
 
     def split_long_line(
         self, spans: list[tuple[int, int]], start: int, end: int
     ) -> None:
         curr = start
-
+        # we keep adding the max_size to the current offset
+        # to get chunks of max_size length
         while curr + self.max_size < end:
             spans.append((curr, curr + self.max_size))
             curr += self.max_size
@@ -186,6 +205,7 @@ class Chunker:
         """
         # this marks the beginning and ending offsets of the node
         lines = source[start:end].splitlines(keepends=True)
+        # keepends count new line as character
         lines_offsets = [0]
         for line in lines:
             lines_offsets.append(lines_offsets[-1] + len(line))
@@ -201,6 +221,8 @@ class Chunker:
                 chunk_length += len(lines[end_line])
                 end_line += 1
             if end_line == start_line:
+                # this case means the first loop never fires
+                # so we couldnt add any line to be smaller that max_size
                 end_line += 1
                 self.split_long_line(
                     spans,
@@ -217,6 +239,7 @@ class Chunker:
             overlap_line = end_line
             overlap_length = 0
             while overlap_line > start_line + 1:
+                # we go back in lines until we fulfill overlap size
                 prev_length = len(lines[overlap_line - 1])
                 if prev_length + overlap_length <= overlap:
                     overlap_line -= 1
@@ -238,7 +261,6 @@ class Chunker:
             with open(file_name) as f:
                 source = f.read()
             content = ast.parse(source)
-        # Catch any file I/O, encoding, or AST syntax errors safely
         except Exception:
             return []
 

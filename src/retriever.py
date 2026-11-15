@@ -23,7 +23,7 @@ class Retriever:
         for s in dic:
             for score in (lex, emb):
                 if s in score:
-                    mult = 1 if score == emb else 1.02
+                    mult = 0 if score == emb else 10
                     dic[s] += (1 / (60 + score.index(s))) * mult
         return (sorted(dic, key=lambda x: dic[x], reverse=True)[:k])
 

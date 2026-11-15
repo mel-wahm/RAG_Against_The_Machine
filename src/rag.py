@@ -5,23 +5,12 @@ from src.indexer import Indexer
 from src.generator import LLM
 from src.evaluator import Evaluator
 from src.embedding import Embedder
-from src.utils import load_or_build, save_atomic, validate_k
+from src.utils import get_index, save_pickle, validate_k
 
 
 class RAG:
     def __init__(self, data_file: str = "data/raw") -> None:
         self.data_file = data_file
-
-    def _get_index(self) -> Indexer:
-        chunks = load_or_build(
-            Path("data/processed/chunks.pkl"),
-            lambda: Chunker(2000, self.data_file).chunks,
-        )
-        index: Indexer = load_or_build(
-            Path("data/processed/index.pkl"),
-            lambda: Indexer(chunks, self.data_file),
-        )
-        return index
 
     def index(self, max_chunk_size: int = 2000) -> None:
         try:
@@ -39,17 +28,16 @@ class RAG:
             print(f"Error: Raw data directory '{self.data_file}' not found.")
             return
 
-        # Catch build and validation errors gracefully to prevent CLI crashes
         try:
             chunks = Chunker(size, self.data_file).chunks
-            save_atomic(Path("data/processed/chunks.pkl"), chunks)
+            save_pickle(Path("data/processed/chunks.pkl"), chunks)
 
             index = Indexer(chunks, self.data_file)
-            save_atomic(Path("data/processed/index.pkl"), index)
+            save_pickle(Path("data/processed/index.pkl"), index)
 
             embedder = Embedder(index)
             index_vector = embedder.embedding()
-            save_atomic(Path("data/processed/vectors.pkl"), index_vector)
+            save_pickle(Path("data/processed/vectors.pkl"), index_vector)
         except Exception as e:
             print(f"Error during indexing: {e}")
             return
@@ -61,7 +49,7 @@ class RAG:
         if k_val is None:
             return
         try:
-            retriever = Retriever(self._get_index())
+            retriever = Retriever(get_index(self.data_file))
             for chunk in retriever.search_query(str(query), k_val):
                 print(chunk)
         except Exception as e:
@@ -76,19 +64,19 @@ class RAG:
         k_val = validate_k(k)
         if k_val is None:
             return
-        Retriever(self._get_index()).search_dataset(
+        Retriever(get_index(self.data_file)).search_dataset(
             dataset_path, save_directory, k_val
         )
 
     def answer(self, query: str = "", k: int = 1) -> None:
         if not str(query).strip():
-            print("Warning: Empty query provided.")
+            print("Empty query provided.")
             return
         k_val = validate_k(k)
         if k_val is None:
             return
         try:
-            retrieved = Retriever(self._get_index()).search_query(
+            retrieved = Retriever(get_index(self.data_file)).search_query(
                 str(query), k_val
             )
             print(LLM().answer_a_question(str(query), retrieved))
