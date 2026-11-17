@@ -65,41 +65,38 @@ class LLM:
             tokenize=True,
             add_generation_prompt=True,
             enable_thinking=False,
-            return_tensors="pt"
+            return_tensors="pt",
+            return_dict=True
         )
         length = questions["input_ids"].shape[1]
-        answers = self.model.generate(**questions, max_new_tokens=60,
+        answers = self.model.generate(**questions, max_new_tokens=100,
                                       do_sample=False, num_beams=1)
         ret = []
         for answer in answers:
             ret.append(self.tokenizer.decode(answer[length:],
-                                             skip_special_tokens=True))
+                                             skip_special_tokens=True).strip())
 
         return ret
 
     def answer_a_question(
-        self, query: str, context: list[MinimalSource] | None = None
+        self, query: str, context: list[MinimalSource]
     ) -> str:
-        prompt = (
-            self.prepare_prompt(query, context)
-            if context is not None
-            else query
-        )
-        message = self.tokenizer.apply_chat_template(
+        prompt = self.prepare_prompt(query, context)
+        question = self.tokenizer.apply_chat_template(
             [
                 {"role": "system", "content": SYSTEM_INSTRUCTION},
                 {"role": "user", "content": prompt},
             ],
             add_generation_prompt=True,
-            tokenize=False,
+            tokenize=True,
             enable_thinking=False,
+            return_tensors="pt",
+            return_dict=True,
         )
-        input_ids = self.tokenizer(message, return_tensors="pt")
-        prompt_length = input_ids["input_ids"].shape[1]
+        prompt_length = question["input_ids"].shape[1]
         output_ids = self.model.generate(
-            input_ids["input_ids"], max_new_tokens=180,
+            **question, max_new_tokens=180,
         )
-
         answer: str = self.tokenizer.decode(
             output_ids[0][prompt_length:], skip_special_tokens=True
         ).strip()
@@ -167,5 +164,6 @@ class LLM:
             save_file = save_dir / path_name
             with open(save_file, "w") as f:
                 f.write(final_result.model_dump_json(indent=4))
+            print(f"Saved student_search_results_and_answer to {save_file}")
         except Exception as e:
             print(f"Error saving answers to '{save_directory}': {e}")

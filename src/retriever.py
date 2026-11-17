@@ -10,11 +10,13 @@ from src.models import (
 )
 from src.indexer import Indexer
 from src.embedding import Embedder
-
+from src.utils import load_or_build
+import numpy as np
 
 class Retriever:
-    def __init__(self, index: Indexer) -> None:
+    def __init__(self, index: Indexer, emb: np.ndarray) -> None:
         self.index = index
+        self.chunks_emb = emb
         self.emb = Embedder(index)
 
     def rrf(self, lex: list[int],
@@ -23,13 +25,18 @@ class Retriever:
         for s in dic:
             for score in (lex, emb):
                 if s in score:
-                    mult = 0 if score == emb else 10
+                    mult = 1 if score == emb else 1.3
                     dic[s] += (1 / (60 + score.index(s))) * mult
         return (sorted(dic, key=lambda x: dic[x], reverse=True)[:k])
 
+    def search_emb(self, query: str, k: int) -> list[int]:
+        query_emb = self.emb.model.encode(query, normalize_embeddings=True)
+        score = self.chunks_emb @ query_emb
+        return np.argsort(-score).tolist()[:k]
+
     def search_query(self, query: str, k: int) -> list[MinimalSource]:
         lex_top_scores = self.index.bm25(query, k)
-        emb_scores = self.emb.search(query, k)
+        emb_scores = self.search_emb(query, k)
         top_scores = self.rrf(lex_top_scores, emb_scores, k)
         return [self.index.chunks[chunk] for chunk in top_scores]
 

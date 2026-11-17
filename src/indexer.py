@@ -230,8 +230,9 @@ class Indexer:
                     k = code_k
                 else:
                     k = docs_k
-                bast = k + 1
-                maqam = 1 + (k * self.penalty[chunk] / tf)
+                norm = self.penalty[chunk]
+                bast = (tf / norm) * (k + 1)
+                maqam = tf / norm + k
                 scores[chunk] += idf * (bast / maqam) * multiplier
         new_scores = nlargest(top_k, scores, key=lambda x: scores[x])
         return new_scores

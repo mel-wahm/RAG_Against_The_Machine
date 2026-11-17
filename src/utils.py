@@ -14,14 +14,17 @@ def save_pickle(path: Path, obj: Any) -> None:
     temp_path.replace(path)
 
 
-def load_or_build(path: Path, build: Callable) -> Any:
+def load_or_build(path: Path, build: Callable, silent: bool = False)\
+      -> Any:
     try:
         with open(path, "rb") as f:
             obj = pickle.load(f)
-        print(f"Loaded {path.name} from disk")
+        if not silent:
+            print(f"Loaded {path.name} from disk")
         return obj
     except (FileNotFoundError, PermissionError, Exception):
-        print(f"{path.name} not found or incomplete. Building..")
+        if not silent:
+            print(f"{path.name} not found or incomplete. Building..")
         try:
             obj = build()
             save_pickle(path, obj)
@@ -46,13 +49,18 @@ def validate_k(k: Any) -> int | None:
     return k_val
 
 
-def get_index(data_file: str) -> Indexer:
-    chunks = load_or_build(
-        Path("data/processed/chunks.pkl"),
-        lambda: Chunker(2000, data_file).chunks,
-    )
-    index: Indexer = load_or_build(
-        Path("data/processed/index.pkl"),
-        lambda: Indexer(chunks, data_file),
-    )
-    return index
+def load_index_and_embeddings() -> Any:
+    try:
+        with open("data/processed/index.pkl", "rb") as f:
+            index = pickle.load(f)
+    except Exception:
+        print("index not found, please run the indexer first")
+        return None, None
+    try:
+        with open("data/processed/embedding.pkl", "rb") as f:
+            emb = pickle.load(f)
+    except Exception:
+        print("embedding vectors not found, please run the indexer first")
+        return None, None
+    
+    return index, emb

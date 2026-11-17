@@ -5,7 +5,7 @@ from src.indexer import Indexer
 from src.generator import LLM
 from src.evaluator import Evaluator
 from src.embedding import Embedder
-from src.utils import get_index, save_pickle, validate_k
+from src.utils import load_index_and_embeddings, save_pickle, validate_k
 
 
 class RAG:
@@ -37,19 +37,24 @@ class RAG:
 
             embedder = Embedder(index)
             index_vector = embedder.embedding()
-            save_pickle(Path("data/processed/vectors.pkl"), index_vector)
+            save_pickle(Path("data/processed/embedding.pkl"), index_vector)
+            print("Ingestion complete! Indices saved under data/processed/")
         except Exception as e:
             print(f"Error during indexing: {e}")
             return
 
     def search(self, query: str = "", k: int = 5) -> None:
         if not str(query).strip():
+            print("Empty query provided.")
             return
         k_val = validate_k(k)
         if k_val is None:
             return
+        index, emb = load_index_and_embeddings()
+        if index is None or emb is None:
+            return
         try:
-            retriever = Retriever(get_index(self.data_file))
+            retriever = Retriever(index, emb)
             for chunk in retriever.search_query(str(query), k_val):
                 print(chunk)
         except Exception as e:
@@ -64,9 +69,17 @@ class RAG:
         k_val = validate_k(k)
         if k_val is None:
             return
-        Retriever(get_index(self.data_file)).search_dataset(
-            dataset_path, save_directory, k_val
-        )
+        index, emb = load_index_and_embeddings()
+        if index is None or emb is None:
+            return
+        try:
+            Retriever(index, emb).search_dataset(
+                dataset_path, save_directory, k_val
+            )
+        except Exception as e:
+            print(f"Error while searching dataset: {e}")
+        print(f"Saved student_search_results to {Path(save_directory) / Path(dataset_path).name} ")
+
 
     def answer(self, query: str = "", k: int = 1) -> None:
         if not str(query).strip():
@@ -75,8 +88,11 @@ class RAG:
         k_val = validate_k(k)
         if k_val is None:
             return
+        index, emb = load_index_and_embeddings()
+        if index is None or emb is None:
+            return
         try:
-            retrieved = Retriever(get_index(self.data_file)).search_query(
+            retrieved = Retriever(index, emb).search_query(
                 str(query), k_val
             )
             print(LLM().answer_a_question(str(query), retrieved))
