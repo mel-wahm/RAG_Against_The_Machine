@@ -78,8 +78,8 @@ class RAG:
             )
         except Exception as e:
             print(f"Error while searching dataset: {e}")
-        print(f"Saved student_search_results to {Path(save_directory) / Path(dataset_path).name} ")
-
+        print("Saved student_search_results to "
+              f"{Path(save_directory) / Path(dataset_path).name}")
 
     def answer(self, query: str = "", k: int = 1) -> None:
         if not str(query).strip():

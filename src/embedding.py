@@ -1,7 +1,9 @@
 import numpy as np
+from src.indexer import Indexer
+
 
 class Embedder:
-    def __init__(self, index) -> None:
+    def __init__(self, index: Indexer) -> None:
         from sentence_transformers import SentenceTransformer
         self.model = SentenceTransformer("all-MiniLM-L6-v2")
         self.index = index

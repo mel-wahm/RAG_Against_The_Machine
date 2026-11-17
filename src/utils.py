@@ -1,6 +1,3 @@
-from src.indexer import Indexer
-from src.chunker import Chunker
-
 from pathlib import Path
 from typing import Callable, Any
 import pickle
@@ -62,5 +59,5 @@ def load_index_and_embeddings() -> Any:
     except Exception:
         print("embedding vectors not found, please run the indexer first")
         return None, None
-    
+
     return index, emb

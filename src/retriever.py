@@ -10,8 +10,8 @@ from src.models import (
 )
 from src.indexer import Indexer
 from src.embedding import Embedder
-from src.utils import load_or_build
 import numpy as np
+
 
 class Retriever:
     def __init__(self, index: Indexer, emb: np.ndarray) -> None:
@@ -32,7 +32,7 @@ class Retriever:
     def search_emb(self, query: str, k: int) -> list[int]:
         query_emb = self.emb.model.encode(query, normalize_embeddings=True)
         score = self.chunks_emb @ query_emb
-        return np.argsort(-score).tolist()[:k]
+        return [int(x) for x in np.argsort(-score)[:k]]
 
     def search_query(self, query: str, k: int) -> list[MinimalSource]:
         lex_top_scores = self.index.bm25(query, k)
