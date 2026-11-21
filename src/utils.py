@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Callable, Any
+from typing import Any
 import pickle
 
 
@@ -9,26 +9,6 @@ def save_pickle(path: Path, obj: Any) -> None:
     with open(temp_path, "wb") as f:
         pickle.dump(obj, f)
     temp_path.replace(path)
-
-
-def load_or_build(path: Path, build: Callable, silent: bool = False)\
-      -> Any:
-    try:
-        with open(path, "rb") as f:
-            obj = pickle.load(f)
-        if not silent:
-            print(f"Loaded {path.name} from disk")
-        return obj
-    except (FileNotFoundError, PermissionError, Exception):
-        if not silent:
-            print(f"{path.name} not found or incomplete. Building..")
-        try:
-            obj = build()
-            save_pickle(path, obj)
-            return obj
-        except Exception as e:
-            print(f"Error building {path.name}: {e}")
-            raise SystemExit(1)
 
 
 def validate_k(k: Any) -> int | None:

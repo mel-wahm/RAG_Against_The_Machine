@@ -9,10 +9,36 @@ from src.utils import load_index_and_embeddings, save_pickle, validate_k
 
 
 class RAG:
+    """
+    Orchestrate the retrieval-augmented generation pipeline.
+    Attributes
+    ----------
+    data_file : str
+        Path to the directory containing the raw data.
+    """
     def __init__(self, data_file: str = "data/raw") -> None:
+        """
+        Initialize the RAG pipeline.
+        Parameters
+        ----------
+        data_file : str, default="data/raw"
+            Path to the directory containing the raw data.
+        """
         self.data_file = data_file
 
     def index(self, max_chunk_size: int = 2000) -> None:
+        """
+        Builds and saves the index and document embeddings.
+        Parameters
+        ----------
+        max_chunk_size : int, default=2000
+            Maximum number of characters allowed per chunk.
+            Must be between 200 and 2000.
+
+        Returns
+        -------
+        None
+        """
         try:
             size = int(max_chunk_size)
         except (ValueError, TypeError):
@@ -21,8 +47,8 @@ class RAG:
         if size <= 0:
             print("Error: max_chunk_size must be a positive integer.")
             return
-        if not 400 <= size <= 2000:
-            print("Error: max_chunk_size must be a between 400 and 2000.")
+        if not 200 <= size <= 2000:
+            print("Error: max_chunk_size must be a between 200 and 2000.")
             return
         if not Path(self.data_file).exists():
             print(f"Error: Raw data directory '{self.data_file}' not found.")
@@ -30,7 +56,6 @@ class RAG:
 
         try:
             chunks = Chunker(size, self.data_file).chunks
-            save_pickle(Path("data/processed/chunks.pkl"), chunks)
 
             index = Indexer(chunks, self.data_file)
             save_pickle(Path("data/processed/index.pkl"), index)
@@ -44,8 +69,22 @@ class RAG:
             return
 
     def search(self, query: str = "", k: int = 5) -> None:
+        """
+        Retrieves and displays the most relevant chunks for a query.
+
+        Parameters
+        ----------
+        query : str, default=""
+            Text query used to search the indexed documents.
+        k : int, default=5
+            Maximum number of relevant chunks to retrieve.
+        
+        Returns
+        -------
+        None
+        """
         if not str(query).strip():
-            print("Empty query provided.")
+            print("No query provided.")
             return
         k_val = validate_k(k)
         if k_val is None:
@@ -63,6 +102,22 @@ class RAG:
     def search_dataset(
         self, dataset_path: str, k: int = 5, save_directory: str = "output"
     ) -> None:
+        """
+        Retrieve relevant sources for every question in a dataset.
+
+        Parameters
+        ----------
+        dataset_path : str
+            Path to the JSON file containing the questions.
+        k : int, default=5
+            Maximum number of sources to retrieve per question.
+        save_directory : str, default="output"
+            Directory where the search results will be saved.
+        
+        Returns
+        -------
+        None
+        """
         if not Path(dataset_path).is_file():
             print(f"Error: Dataset file '{dataset_path}' not found.")
             return
@@ -81,7 +136,22 @@ class RAG:
         print("Saved student_search_results to "
               f"{Path(save_directory) / Path(dataset_path).name}")
 
-    def answer(self, query: str = "", k: int = 1) -> None:
+    def answer(self, query: str = "", k: int = 5) -> None:
+        """
+        Generate an answer to a query using retrieved context.
+
+        Parameters
+        ----------
+        query : str, default=""
+            Question to be answered.
+        k : int, default=5
+            Maximum number of relevant chunks to retrieve
+            and provide as context to the language model.
+        
+        Returns
+        -------
+        None
+        """
         if not str(query).strip():
             print("Empty query provided.")
             return
@@ -102,6 +172,20 @@ class RAG:
     def answer_dataset(
         self, student_search_results_path: str, save_directory: str = "output"
     ) -> None:
+        """
+        Generate answers for questions using previously retrieved sources.
+
+        Parameters
+        ----------
+        student_search_results_path : str
+            Path to the JSON file containing the search results.
+        save_directory : str, default="output"
+            Directory where the generated answers will be saved.
+        
+        Returns
+        -------
+        None
+        """
         if not Path(student_search_results_path).is_file():
             print(f"Error: File '{student_search_results_path}' not found.")
             return
@@ -113,7 +197,20 @@ class RAG:
     def evaluate(
         self, student_search_results_path: str, dataset_path: str
     ) -> None:
-        # Catch evaluation errors gracefully without crashing the CLI
+        """
+        Evaluate retrieval performance against a ground-truth dataset.
+
+        Parameters
+        ----------
+        student_search_results_path : str
+            Path to the JSON file containing the retrieved sources.
+        dataset_path : str
+            Path to the ground-truth dataset used for evaluation.
+        
+        Returns
+        -------
+        None
+        """
         try:
             Evaluator(student_search_results_path, dataset_path).evaluate()
         except Exception as e:

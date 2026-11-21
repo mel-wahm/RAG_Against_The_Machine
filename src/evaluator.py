@@ -53,7 +53,7 @@ class Evaluator:
                 current = 0
                 for a in answer.retrieved_sources[:r]:
                     rec = self.calculate_iou(a, t)
-                    if rec >= 0.05:
+                    if rec > 0.05:
                         current += 1
                         break
                 recall += current / len(truth_sources)
@@ -156,4 +156,4 @@ class Evaluator:
                 f"    ({(recall[r] * 100 / total):.1f}%)",
             )
         print()
-        print({f"recall{r}": recall[r] / total for r in sorted(recall)})
+        print({f"recall@{r}": recall[r] / total for r in sorted(recall)})

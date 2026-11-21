@@ -17,10 +17,8 @@ if __name__ == "__main__":
         from src.rag import RAG
         fire.Fire(RAG("data/raw"))
     except ModuleNotFoundError as e:
-        # Exit with failure status code 1 on missing module
         print(e)
         sys.exit(1)
     except Exception as e:
-        # Exit with failure status code 1 on unhandled errors
         print(e)
         sys.exit(1)

@@ -18,4 +18,6 @@ the pipeline has four stages.
 related to our prompt
 3. **Augmentation:** the top chunks are added to the prompt .
 4. **Generation:** the model writes the answer using that context.
+
 ___
+

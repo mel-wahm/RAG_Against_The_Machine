@@ -153,9 +153,39 @@ TEXT_STOPWORDS = {
 
 
 class Indexer:
+    """
+    Build an inverted index from document chunks for BM25 retrieval.
+
+    Attributes
+    ----------
+    chunks : list[MinimalSource]
+        Collection of document chunks.
+    index : dict[str, dict[int, int]]
+        map of each token and its chunk frequencies.
+    penalty : list[float]
+        List of length normalization for each chunk.
+
+    Parameters
+    ----------
+    chunks : list[MinimalSource]
+        List of chunks chunks to index.
+    folder_path : str, default="data/raw"
+        Path to the corpus containing the files.
+
+    """
     def __init__(
         self, chunks: list[MinimalSource], folder_path: str = "data/raw"
     ) -> None:
+        """
+        Initializes the Indexer class
+
+        Parameters
+        ----------
+        chunks : list[MinimalSource]
+            List of chunks chunks to index.
+        folder_path : str, default="data/raw"
+            Path to the corpus containing the files.
+        """
         self.chunks = chunks
         self.content = self.read_chunks(folder_path)
         self.chunks_length: list[int] = []

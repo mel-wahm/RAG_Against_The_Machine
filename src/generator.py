@@ -1,5 +1,4 @@
 from typing import Any
-from rich import print
 import json
 from pathlib import Path
 from tqdm import tqdm
@@ -29,9 +28,17 @@ class LLM:
         self.tokenizer: Any = \
             AutoTokenizer.from_pretrained("Qwen/Qwen3-0.6B")
         self.tokenizer.padding_side = "left"
+        self.context_window = self.model.config.max_position_embeddings
+        self.max_new_token = 120
+        self.template_length = 49
 
     def prepare_prompt(self, query: str, context: list[MinimalSource]) -> str:
         chunks: list[str] = []
+        total_tokens = 0
+        context_window = self.context_window - \
+            (len(self.tokenizer.encode(query))
+             + self.max_new_token +
+             self.template_length)
         for chunk in context:
             try:
                 raw_text = Path(chunk.file_path).read_text()
@@ -41,11 +48,15 @@ class LLM:
                     ]
                     .strip()
                 )
-                if text:
+                if raw_text:
+                    text_length = len(self.tokenizer.encode(text))
+                    if text_length + \
+                            total_tokens > context_window:
+                        break
                     chunks.append(text)
+                    total_tokens += text_length
             except Exception:
                 continue
-
         context_str = "\n\n---> ".join(chunks)
         return f"Context:\n{context_str}\n\nQuestion: {query}"
 
@@ -69,12 +80,17 @@ class LLM:
             return_dict=True
         )
         length = questions["input_ids"].shape[1]
-        answers = self.model.generate(**questions, max_new_tokens=100,
-                                      do_sample=False, num_beams=1)
+        answers = self.model.generate(
+            **questions,
+            max_new_tokens=self.max_new_token,
+            do_sample=False, num_beams=1
+            )
         ret = []
         for answer in answers:
-            ret.append(self.tokenizer.decode(answer[length:],
-                                             skip_special_tokens=True).strip())
+            ret.append(self.tokenizer.decode(
+                answer[length:],
+                skip_special_tokens=True).strip()
+                )
 
         return ret
 
@@ -95,7 +111,8 @@ class LLM:
         )
         prompt_length = question["input_ids"].shape[1]
         output_ids = self.model.generate(
-            **question, max_new_tokens=180,
+            **question, max_new_tokens=self.max_new_token,
+            do_sample=False, num_beams=1
         )
         answer: str = self.tokenizer.decode(
             output_ids[0][prompt_length:], skip_special_tokens=True
